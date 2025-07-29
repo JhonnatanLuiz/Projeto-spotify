@@ -20,6 +20,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const demoModeBtn = document.getElementById('demo-mode-btn');
     const realModeBtn = document.getElementById('real-mode-btn');
     
+    // Navegação
+    const searchNavBtn = document.querySelector('nav ul li:nth-child(2) a'); // Botão "Buscar"
+    const homeNavBtn = document.querySelector('nav ul li:nth-child(1) a'); // Botão "Início"
+    
     // Player
     const audioPlayer = document.getElementById('audio-player');
     const playPauseBtn = document.getElementById('play-pause-btn');
@@ -253,6 +257,193 @@ document.addEventListener('DOMContentLoaded', () => {
         loadRealData();
     }
 
+    // --- Funções de Busca ---
+    function showSearchInterface() {
+        mainContentArea.innerHTML = `
+            <div class="search-container">
+                <h2 class="text-white mb-4">Buscar Música</h2>
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <input type="text" id="search-input" class="form-control form-control-lg" 
+                                   placeholder="Digite o nome da música, artista ou álbum..." 
+                                   style="background-color: #242424; border-color: #404040; color: white;">
+                            <button id="search-btn" class="btn btn-success btn-lg" type="button">
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="search-results" class="row"></div>
+            </div>
+        `;
+
+        // Event listeners para busca
+        const searchInput = document.getElementById('search-input');
+        const searchBtn = document.getElementById('search-btn');
+
+        searchBtn.addEventListener('click', performSearch);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        // Foco no campo de busca
+        searchInput.focus();
+    }
+
+    async function performSearch() {
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+        const query = searchInput.value.trim();
+
+        if (!query) {
+            alert('Digite alguma coisa para buscar!');
+            return;
+        }
+
+        // Loading
+        searchResults.innerHTML = `
+            <div class="col-12 text-center text-white p-5">
+                <div class="spinner-border text-success"></div>
+                <p class="mt-3">Buscando "${query}"...</p>
+            </div>
+        `;
+
+        try {
+            if (!auth.isAuthenticated() || isDemoMode) {
+                // Busca demo/fictícia
+                performDemoSearch(query);
+                return;
+            }
+
+            // Busca real no Spotify
+            const results = await spotifyAPI.searchTracks(query, 20);
+            
+            if (results && results.tracks && results.tracks.items.length > 0) {
+                displaySearchResults(results.tracks.items);
+            } else {
+                searchResults.innerHTML = `
+                    <div class="col-12 text-center text-white p-5">
+                        <i class="fas fa-search fa-3x mb-3" style="color: #404040;"></i>
+                        <h4>Nenhum resultado encontrado</h4>
+                        <p>Tente buscar com outros termos.</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Erro na busca:', error);
+            searchResults.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Erro ao buscar: ${error.message}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function performDemoSearch(query) {
+        const searchResults = document.getElementById('search-results');
+        
+        // Simulação de busca em dados demo
+        const demoResults = [
+            { 
+                id: 'demo_1', 
+                name: "Bohemian Rhapsody", 
+                artists: [{ name: "Queen" }],
+                album: { 
+                    images: [{ url: "https://placehold.co/300x300/1db954/ffffff?text=Queen" }],
+                    name: "A Night at the Opera"
+                },
+                preview_url: "https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3"
+            },
+            { 
+                id: 'demo_2', 
+                name: "Imagine", 
+                artists: [{ name: "John Lennon" }],
+                album: { 
+                    images: [{ url: "https://placehold.co/300x300/ff6b6b/ffffff?text=Lennon" }],
+                    name: "Imagine"
+                },
+                preview_url: "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Kangaroo_MusiQue_-_The_Neverwritten_Role_Playing_Game.mp3"
+            }
+        ].filter(track => 
+            track.name.toLowerCase().includes(query.toLowerCase()) ||
+            track.artists[0].name.toLowerCase().includes(query.toLowerCase())
+        );
+
+        if (demoResults.length > 0) {
+            displaySearchResults(demoResults);
+        } else {
+            searchResults.innerHTML = `
+                <div class="col-12 text-center text-white p-5">
+                    <i class="fas fa-search fa-3x mb-3" style="color: #404040;"></i>
+                    <h4>Nenhum resultado encontrado</h4>
+                    <p>Tente buscar por "Queen", "Bohemian", "John Lennon" ou "Imagine".</p>
+                </div>
+            `;
+        }
+    }
+
+    function displaySearchResults(tracks) {
+        const searchResults = document.getElementById('search-results');
+        searchResults.innerHTML = '';
+
+        tracks.forEach(track => {
+            const trackCard = createSearchResultCard(track);
+            searchResults.appendChild(trackCard);
+        });
+    }
+
+    function createSearchResultCard(track) {
+        const cardCol = document.createElement('div');
+        cardCol.className = 'col-md-3 col-sm-4 col-6 mb-4';
+        
+        const albumArt = track.album?.images?.[0]?.url || 'https://placehold.co/300x300/1DB954/121212?text=Musica';
+        const artistNames = track.artists?.map(artist => artist.name).join(', ') || 'Artista Desconhecido';
+        
+        cardCol.innerHTML = `
+            <div class="content-card text-decoration-none h-100">
+                <div style="position:relative;">
+                    <img src="${albumArt}" alt="Capa de ${track.name}" class="card-img-top">
+                    <button class="play-button-overlay" data-track-search='${JSON.stringify(track)}'><i class="fas fa-play"></i></button>
+                </div>
+                <div class="card-body p-2 mt-2">
+                    <h5 class="card-title text-white">${track.name}</h5>
+                    <p class="card-subtitle">${artistNames}</p>
+                    <p class="card-text small text-muted">${track.album?.name || ''}</p>
+                </div>
+            </div>
+        `;
+
+        cardCol.querySelector('.play-button-overlay').addEventListener('click', () => {
+            const trackData = JSON.parse(cardCol.querySelector('.play-button-overlay').dataset.trackSearch);
+            playSearchedTrack(trackData);
+        });
+
+        return cardCol;
+    }
+
+    function playSearchedTrack(track) {
+        const trackToPlay = {
+            id: track.id,
+            title: track.name,
+            artist: track.artists?.map(a => a.name).join(', ') || 'Artista Desconhecido',
+            albumArt: track.album?.images?.[0]?.url,
+            audioUrl: track.preview_url
+        };
+
+        if (trackToPlay.audioUrl) {
+            loadTrack(trackToPlay);
+            playTrack();
+        } else {
+            alert('Preview não disponível para esta música.');
+        }
+    }
+
     // --- Inicialização ---
     function init() {
         console.log("--- Executando a função init() ---");
@@ -292,6 +483,30 @@ document.addEventListener('DOMContentLoaded', () => {
             realModeBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 activateRealMode();
+            });
+        }
+
+        // Event listeners para navegação
+        if (searchNavBtn) {
+            searchNavBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Remove classe active de todos os links
+                document.querySelectorAll('nav ul li a').forEach(link => link.classList.remove('active'));
+                // Adiciona classe active ao botão clicado
+                searchNavBtn.classList.add('active');
+                showSearchInterface();
+            });
+        }
+
+        if (homeNavBtn) {
+            homeNavBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Remove classe active de todos os links
+                document.querySelectorAll('nav ul li a').forEach(link => link.classList.remove('active'));
+                // Adiciona classe active ao botão clicado
+                homeNavBtn.classList.add('active');
+                // Recarrega a tela inicial
+                updateUIForAuthState();
             });
         }
 

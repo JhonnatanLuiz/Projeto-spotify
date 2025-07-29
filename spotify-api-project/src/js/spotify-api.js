@@ -60,4 +60,9 @@ class SpotifyAPI {
     async getPlaylistTracks(playlistId, limit = 50) {
         return this.makeRequest(`/playlists/${playlistId}/tracks?limit=${limit}`);
     }
+
+    async searchTracks(query, limit = 20) {
+        const encodedQuery = encodeURIComponent(query);
+        return this.makeRequest(`/search?q=${encodedQuery}&type=track&limit=${limit}`);
+    }
 }
