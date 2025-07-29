@@ -40,9 +40,66 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Instâncias e Estado ---
     const auth = new SpotifyAuth();
     const spotifyAPI = new SpotifyAPI(auth);
+    let player;
+    let deviceId;
     let currentPlaylist = [];
     let currentTrackIndex = 0;
     let isDemoMode = localStorage.getItem('demo_mode') === 'true'; // Estado do modo demo
+
+    // --- Spotify Web Playback SDK ---
+    window.onSpotifyWebPlaybackSDKReady = () => {
+        if (auth.isAuthenticated()) {
+            const token = auth.getAccessToken();
+            player = new Spotify.Player({
+                name: 'Spotify Clone Player',
+                getOAuthToken: cb => { cb(token); }
+            });
+
+            // Error handling
+            player.addListener('initialization_error', ({ message }) => { console.error(message); });
+            player.addListener('authentication_error', ({ message }) => { console.error(message); });
+            player.addListener('account_error', ({ message }) => { console.error(message); });
+            player.addListener('playback_error', ({ message }) => { console.error(message); });
+
+            // Playback status updates
+            player.addListener('player_state_changed', state => {
+                if (!state) {
+                    return;
+                }
+
+                let {
+                    current_track,
+                    next_tracks: [next_track]
+                } = state.track_window;
+
+                console.log('Currently Playing', current_track);
+                console.log('Playing Next', next_track);
+
+                currentTrackImage.src = current_track.album.images[0].url;
+                currentTrackName.textContent = current_track.name;
+                currentTrackArtist.textContent = current_track.artists.map(artist => artist.name).join(', ');
+
+                updateProgress(state.position, state.duration);
+                playPauseBtn.innerHTML = state.paused ? '<i class="fas fa-play"></i>' : '<i class="fas fa-pause"></i>';
+
+                audioPlayer.onended = () => {};
+            });
+
+            // Ready
+            player.addListener('ready', ({ device_id }) => {
+                console.log('Ready with Device ID', device_id);
+                deviceId = device_id;
+            });
+
+            // Not Ready
+            player.addListener('not_ready', ({ device_id }) => {
+                console.log('Device ID has gone offline', device_id);
+            });
+
+            // Connect to the player!
+            player.connect();
+        }
+    };
 
     // --- Lógica de Autenticação e UI ---
     function updateUIForAuthState() {
@@ -77,36 +134,58 @@ document.addEventListener('DOMContentLoaded', () => {
             const avatar = profile.images?.[0]?.url;
             if (avatar) userAvatar.src = avatar;
         }
+        loadUserPlaylists();
     }
 
     // --- Carregamento de Dados ---
     async function loadRealData() {
-        showLoadingMessage('Carregando suas músicas do Spotify...');
+        showLoadingMessage('Carregando suas músicas recentes do Spotify...');
         try {
-            const playlistsData = await spotifyAPI.getFeaturedPlaylists(1);
-            if (!playlistsData || playlistsData.playlists.items.length === 0) {
-                throw new Error("Nenhuma playlist em destaque encontrada.");
-            }
-            const playlist = playlistsData.playlists.items[0];
-            const tracksData = await spotifyAPI.getPlaylistTracks(playlist.id, 50);
-            const tracks = tracksData.items.filter(item => item.track && item.track.preview_url);
-
-            if (tracks.length > 0) {
-                currentPlaylist = tracks.map(item => ({
+            const recentlyPlayedData = await spotifyAPI.getRecentlyPlayed();
+            if (recentlyPlayedData && recentlyPlayedData.items.length > 0) {
+                const tracks = recentlyPlayedData.items.map(item => ({
                     id: item.track.id,
                     title: item.track.name,
                     artist: item.track.artists.map(a => a.name).join(', '),
                     albumArt: item.track.album.images[0]?.url,
+                    uri: item.track.uri,
                     audioUrl: item.track.preview_url
                 }));
+                currentPlaylist = tracks;
                 displayTracks();
-                loadTrack(currentPlaylist[0]);
             } else {
-                loadFallbackData("Nenhuma música com preview encontrada.");
+                // If no recent tracks, load top artists
+                loadTopArtists();
             }
         } catch (error) {
-            console.error('Erro ao carregar dados reais:', error);
-            loadFallbackData('Não foi possível carregar os dados do Spotify.');
+            console.error('Erro ao carregar músicas recentes:', error);
+            loadTopArtists(); // Fallback to top artists
+        }
+    }
+
+    async function loadTopArtists() {
+        showLoadingMessage('Carregando seus artistas favoritos do Spotify...');
+        try {
+            const topArtistsData = await spotifyAPI.getTopArtists();
+            if (topArtistsData && topArtistsData.items.length > 0) {
+                const artists = topArtistsData.items.map(artist => ({
+                    id: artist.id,
+                    title: artist.name,
+                    artist: 'Artista',
+                    albumArt: artist.images[0]?.url,
+                    uri: artist.uri
+                }));
+                const container = document.createElement('div');
+                container.className = 'row';
+                artists.forEach(item => container.appendChild(createContentCard(item)));
+                mainContentArea.innerHTML = '';
+                mainContentArea.appendChild(container);
+            } else {
+                throw new Error("Nenhum artista encontrado.");
+            }
+        } catch (error) {
+            console.error('Erro ao carregar artistas:', error);
+            loadFallbackData('Não foi possível carregar seus artistas favoritos.');
         }
     }
 
@@ -200,8 +279,12 @@ document.addEventListener('DOMContentLoaded', () => {
         cardCol.querySelector('.play-button-overlay').addEventListener('click', () => {
             const track = currentPlaylist.find(t => t.id == item.id);
             if (track) {
-                loadTrack(track);
-                playTrack();
+                if (isDemoMode) {
+                    loadTrack(track);
+                    audioPlayer.play();
+                } else {
+                    playTrack(track.uri);
+                }
             }
         });
         return cardCol;
@@ -218,17 +301,106 @@ document.addEventListener('DOMContentLoaded', () => {
         audioPlayer.onloadedmetadata = () => totalDurationElement.textContent = formatTime(audioPlayer.duration);
     }
 
-    function playTrack() { audioPlayer.play().catch(e => console.error("Erro ao tocar:", e)); }
-    function pauseTrack() { audioPlayer.pause(); }
-    function togglePlayPause() { if (audioPlayer.paused) playTrack(); else pauseTrack(); }
-    function nextTrack() { currentTrackIndex = (currentTrackIndex + 1) % currentPlaylist.length; loadTrack(currentPlaylist[currentTrackIndex]); playTrack(); }
-    function prevTrack() { currentTrackIndex = (currentTrackIndex - 1 + currentPlaylist.length) % currentPlaylist.length; loadTrack(currentPlaylist[currentTrackIndex]); playTrack(); }
-    function updateProgress() {
-        progressBar.style.width = `${(audioPlayer.currentTime / audioPlayer.duration) * 100}%`;
-        currentTimeElement.textContent = formatTime(audioPlayer.currentTime);
+    function playTrack(spotify_uri) {
+        if (!deviceId) {
+            console.error("Device ID not available");
+            return;
+        }
+        spotifyAPI.play(deviceId, spotify_uri);
     }
-    function setProgress(e) { audioPlayer.currentTime = (e.offsetX / this.clientWidth) * audioPlayer.duration; }
+    function pauseTrack() { player.pause(); }
+    function togglePlayPause() { player.togglePlay(); }
+    function nextTrack() { player.nextTrack(); }
+    function prevTrack() { player.previousTrack(); }
+    function updateProgress(position, duration) {
+        progressBar.style.width = `${(position / duration) * 100}%`;
+        currentTimeElement.textContent = formatTime(position / 1000);
+        totalDurationElement.textContent = formatTime(duration / 1000);
+    }
+    function setProgress(e) {
+        const width = this.clientWidth;
+        const clickX = e.offsetX;
+        player.getCurrentState().then(state => {
+            if (state) {
+                const duration = state.duration;
+                player.seek(Math.round(clickX / width * duration));
+            }
+        });
+    }
     function formatTime(s) { const m = Math.floor(s / 60); const sec = Math.floor(s % 60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; }
+
+    // --- Search ---
+    async function handleSearch() {
+        const query = document.getElementById('search-input').value;
+        if (query) {
+            showLoadingMessage(`Buscando por "${query}"...`);
+            try {
+                const results = await spotifyAPI.search(query);
+                displaySearchResults(results);
+            } catch (error) {
+                console.error('Erro ao buscar:', error);
+                showErrorMessage('Não foi possível realizar a busca.');
+            }
+        }
+    }
+
+    function displaySearchResults(results) {
+        mainContentArea.innerHTML = '';
+        if (results.tracks.items.length > 0) {
+            const tracks = results.tracks.items.map(item => ({
+                id: item.id,
+                title: item.name,
+                artist: item.artists.map(a => a.name).join(', '),
+                albumArt: item.album.images[0]?.url,
+                uri: item.uri,
+                audioUrl: item.preview_url
+            }));
+            currentPlaylist = tracks;
+            const container = document.createElement('div');
+            container.className = 'row';
+            tracks.forEach(item => container.appendChild(createContentCard(item)));
+            mainContentArea.appendChild(container);
+        } else {
+            showErrorMessage('Nenhum resultado encontrado.');
+        }
+    }
+
+    async function loadUserPlaylists() {
+        const playlistsData = await spotifyAPI.getUserPlaylists();
+        if (playlistsData && playlistsData.items) {
+            const userPlaylists = document.getElementById('user-playlists');
+            userPlaylists.innerHTML = '';
+            playlistsData.items.forEach(playlist => {
+                const playlistElement = document.createElement('a');
+                playlistElement.href = '#';
+                playlistElement.className = 'list-group-item list-group-item-action bg-transparent border-0 text-white';
+                playlistElement.textContent = playlist.name;
+                playlistElement.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    showLoadingMessage(`Carregando a playlist "${playlist.name}"...`);
+                    const tracksData = await spotifyAPI.getPlaylistTracks(playlist.id);
+                    const tracks = tracksData.items.filter(item => item.track && (item.track.preview_url || item.track.uri));
+                    if (tracks.length > 0) {
+                        currentPlaylist = tracks.map(item => ({
+                            id: item.track.id,
+                            title: item.track.name,
+                            artist: item.track.artists.map(a => a.name).join(', '),
+                            albumArt: item.track.album.images[0]?.url,
+                            uri: item.track.uri,
+                            audioUrl: item.track.preview_url
+                        }));
+                        displayTracks();
+                        if (!isDemoMode && currentPlaylist.length > 0) {
+                            playTrack(currentPlaylist[0].uri);
+                        }
+                    } else {
+                        showErrorMessage(`A playlist "${playlist.name}" não contém músicas com preview.`);
+                    }
+                });
+                userPlaylists.appendChild(playlistElement);
+            });
+        }
+    }
 
     // --- Funções de Modo Demo ---
     function activateDemoMode() {
@@ -513,11 +685,26 @@ document.addEventListener('DOMContentLoaded', () => {
         playPauseBtn.addEventListener('click', togglePlayPause);
         prevBtn.addEventListener('click', prevTrack);
         nextBtn.addEventListener('click', nextTrack);
-        audioPlayer.addEventListener('timeupdate', updateProgress);
-        audioPlayer.addEventListener('ended', nextTrack);
-        audioPlayer.addEventListener('play', () => playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>');
-        audioPlayer.addEventListener('pause', () => playPauseBtn.innerHTML = '<i class="fas fa-play"></i>');
+        // audioPlayer.addEventListener('timeupdate', updateProgress);
+        // audioPlayer.addEventListener('ended', nextTrack);
+        // audioPlayer.addEventListener('play', () => playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>');
+        // audioPlayer.addEventListener('pause', () => playPauseBtn.innerHTML = '<i class="fas fa-play"></i>');
         progressBarContainer.addEventListener('click', setProgress);
+
+        document.getElementById('search-button').addEventListener('click', handleSearch);
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSearch();
+            }
+        });
+        document.getElementById('home-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (auth.isAuthenticated() && !isDemoMode) {
+                loadRealData();
+            } else {
+                loadFallbackData();
+            }
+        });
         
         console.log("--- Função init() concluída ---");
     }

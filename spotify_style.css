@@ -46,6 +46,34 @@
             color: #fff;
             background-color: #282828; /* Leve destaque no hover/ativo */
         }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background-color: #282828;
+            border-radius: 25px;
+            padding: 5px 10px;
+            margin: 0 15px;
+        }
+
+        .search-bar input {
+            background-color: transparent;
+            border: none;
+            color: #fff;
+            width: 100%;
+            padding: 5px;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+        }
+
+        .search-bar button {
+            background-color: transparent;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+        }
         .sidebar nav ul li a i {
             margin-right: 16px;
             font-size: 1.4em; /* Tamanho dos ícones */
