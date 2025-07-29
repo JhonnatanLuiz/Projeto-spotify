@@ -69,4 +69,10 @@ class SpotifyAPI {
         };
         return this.makeRequest(endpoint, options);
     }
+
+    async search(query, types = ['track', 'artist', 'album'], limit = 20) {
+        const type = types.join(',');
+        const endpoint = `/search?q=${encodeURIComponent(query)}&type=${type}&limit=${limit}`;
+        return this.makeRequest(endpoint);
+    }
 }

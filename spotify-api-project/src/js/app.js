@@ -303,6 +303,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function formatTime(s) { const m = Math.floor(s / 60); const sec = Math.floor(s % 60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; }
 
+    // --- Search ---
+    async function handleSearch() {
+        const query = document.getElementById('search-input').value;
+        if (query) {
+            showLoadingMessage(`Buscando por "${query}"...`);
+            try {
+                const results = await spotifyAPI.search(query);
+                displaySearchResults(results);
+            } catch (error) {
+                console.error('Erro ao buscar:', error);
+                showErrorMessage('Não foi possível realizar a busca.');
+            }
+        }
+    }
+
+    function displaySearchResults(results) {
+        mainContentArea.innerHTML = '';
+        if (results.tracks.items.length > 0) {
+            const tracks = results.tracks.items.map(item => ({
+                id: item.id,
+                title: item.name,
+                artist: item.artists.map(a => a.name).join(', '),
+                albumArt: item.album.images[0]?.url,
+                uri: item.uri,
+                audioUrl: item.preview_url
+            }));
+            currentPlaylist = tracks;
+            const container = document.createElement('div');
+            container.className = 'row';
+            tracks.forEach(item => container.appendChild(createContentCard(item)));
+            mainContentArea.appendChild(container);
+        } else {
+            showErrorMessage('Nenhum resultado encontrado.');
+        }
+    }
+
     // --- Funções de Modo Demo ---
     function activateDemoMode() {
         console.log("Ativando modo demo...");
@@ -380,6 +416,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // audioPlayer.addEventListener('play', () => playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>');
         // audioPlayer.addEventListener('pause', () => playPauseBtn.innerHTML = '<i class="fas fa-play"></i>');
         progressBarContainer.addEventListener('click', setProgress);
+
+        document.getElementById('search-button').addEventListener('click', handleSearch);
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSearch();
+            }
+        });
         
         console.log("--- Função init() concluída ---");
     }
