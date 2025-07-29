@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔄 Spotify OAuth Callback - Detalhado</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid;
+        }
+        .success {
+            background-color: #1b2d1b;
+            border-left-color: #51cf66;
+            color: #51cf66;
+        }
+        .error {
+            background-color: #2d1b1b;
+            border-left-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+        .loading {
+            background-color: #1b1f2d;
+            border-left-color: #74c0fc;
+            color: #74c0fc;
+        }
+        .code {
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        button {
+            background-color: #1db954;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #1aa34a;
+        }
+        .info-section {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .info-section h3 {
+            color: #1db954;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 Spotify OAuth Callback - Análise Detalhada</h1>
+    
+    <div id="status" class="status loading">
+        <h2>⏳ Processando callback...</h2>
+        <p>Analisando resposta da autenticação do Spotify...</p>
+    </div>
+
+    <div class="info-section">
+        <h3>📋 Informações da URL</h3>
+        <p><strong>URL completa:</strong></p>
+        <div class="code" id="full-url"></div>
+        
+        <p><strong>Hash (parâmetros após #):</strong></p>
+        <div class="code" id="hash-params"></div>
+        
+        <p><strong>Query (parâmetros após ?):</strong></p>
+        <div class="code" id="query-params"></div>
+    </div>
+
+    <div class="info-section">
+        <h3>🔍 Análise dos Parâmetros</h3>
+        <div id="params-analysis"></div>
+    </div>
+
+    <div class="info-section">
+        <h3>💾 Armazenamento</h3>
+        <div id="storage-info"></div>
+    </div>
+
+    <div class="info-section">
+        <h3>🚀 Próximos Passos</h3>
+        <div id="next-steps"></div>
+    </div>
+
+    <script>
+        function updateStatus(type, title, message) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `
+                <h2>${title}</h2>
+                <p>${message}</p>
+            `;
+        }
+
+        function displayUrlInfo() {
+            document.getElementById('full-url').textContent = window.location.href;
+            document.getElementById('hash-params').textContent = window.location.hash || '(nenhum)';
+            document.getElementById('query-params').textContent = window.location.search || '(nenhum)';
+        }
+
+        function analyzeParameters() {
+            const analysisDiv = document.getElementById('params-analysis');
+            let analysis = '';
+
+            // Verifica hash parameters (usado pelo Spotify para tokens)
+            if (window.location.hash) {
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                
+                analysis += '<h4>🔑 Parâmetros do Hash:</h4>';
+                analysis += '<ul>';
+                
+                for (const [key, value] of hashParams) {
+                    if (key === 'access_token') {
+                        analysis += `<li><strong>${key}:</strong> ${value.substring(0, 20)}... (token encontrado!)</li>`;
+                    } else {
+                        analysis += `<li><strong>${key}:</strong> ${value}</li>`;
+                    }
+                }
+                
+                analysis += '</ul>';
+            }
+
+            // Verifica query parameters (usado para erros)
+            if (window.location.search) {
+                const queryParams = new URLSearchParams(window.location.search);
+                
+                analysis += '<h4>⚠️ Parâmetros da Query:</h4>';
+                analysis += '<ul>';
+                
+                for (const [key, value] of queryParams) {
+                    analysis += `<li><strong>${key}:</strong> ${value}</li>`;
+                }
+                
+                analysis += '</ul>';
+            }
+
+            if (!window.location.hash && !window.location.search) {
+                analysis = '<p>ℹ️ Nenhum parâmetro encontrado na URL.</p>';
+            }
+
+            analysisDiv.innerHTML = analysis;
+        }
+
+        function handleCallback() {
+            displayUrlInfo();
+            analyzeParameters();
+
+            // Verifica se há um token de acesso
+            if (window.location.hash.includes('access_token')) {
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                const accessToken = hashParams.get('access_token');
+                const tokenType = hashParams.get('token_type');
+                const expiresIn = hashParams.get('expires_in');
+
+                if (accessToken) {
+                    updateStatus('success', '🎉 Autenticação bem-sucedida!', 'Token de acesso recebido com sucesso.');
+                    
+                    // Salva no localStorage
+                    localStorage.setItem('spotify_access_token', accessToken);
+                    localStorage.setItem('spotify_token_type', tokenType || 'Bearer');
+                    const expiryTime = Date.now() + (parseInt(expiresIn) * 1000);
+                    localStorage.setItem('spotify_token_expires', expiryTime.toString());
+
+                    document.getElementById('storage-info').innerHTML = `
+                        <p>✅ Token salvo no localStorage:</p>
+                        <ul>
+                            <li><strong>Token:</strong> ${accessToken.substring(0, 20)}...</li>
+                            <li><strong>Tipo:</strong> ${tokenType || 'Bearer'}</li>
+                            <li><strong>Expira em:</strong> ${expiresIn} segundos</li>
+                        </ul>
+                    `;
+
+                    document.getElementById('next-steps').innerHTML = `
+                        <p>🎯 Próximos passos:</p>
+                        <ul>
+                            <li>✅ Token obtido com sucesso</li>
+                            <li>✅ Token salvo no localStorage</li>
+                            <li>🔄 Você pode agora usar a aplicação principal</li>
+                        </ul>
+                        <button onclick="window.location.href='/spotify-api-project/src/index.html'">
+                            🚀 Ir para a Aplicação Principal
+                        </button>
+                        <button onclick="testToken()">
+                            🧪 Testar Token
+                        </button>
+                    `;
+                } else {
+                    updateStatus('error', '❌ Token não encontrado', 'Parâmetros de hash presentes, mas token não identificado.');
+                }
+            }
+            // Verifica se há um erro
+            else if (window.location.search.includes('error=') || window.location.hash.includes('error=')) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                
+                const error = urlParams.get('error') || hashParams.get('error');
+                const errorDescription = urlParams.get('error_description') || hashParams.get('error_description');
+                
+                updateStatus('error', '❌ Erro na autenticação', `Erro: ${error}`);
+                
+                document.getElementById('storage-info').innerHTML = `
+                    <p>❌ Erro detectado:</p>
+                    <ul>
+                        <li><strong>Erro:</strong> ${error}</li>
+                        <li><strong>Descrição:</strong> ${errorDescription || 'Não fornecida'}</li>
+                    </ul>
+                `;
+
+                document.getElementById('next-steps').innerHTML = `
+                    <p>🔧 Para resolver este erro:</p>
+                    <ul>
+                        <li>Verifique a configuração do redirect URI no Dashboard do Spotify</li>
+                        <li>Certifique-se de que a URL seja exatamente: <code>http://127.0.0.1:3000/callback</code></li>
+                        <li>Tente limpar o cache do navegador</li>
+                    </ul>
+                    <button onclick="window.location.href='/spotify-api-project/debug-completo.html'">
+                        🔍 Voltar ao Debug
+                    </button>
+                `;
+            }
+            // Nenhum parâmetro encontrado
+            else {
+                updateStatus('error', '⚠️ Nenhum parâmetro encontrado', 'A URL não contém parâmetros de autenticação.');
+                
+                document.getElementById('storage-info').innerHTML = `
+                    <p>ℹ️ Possíveis causas:</p>
+                    <ul>
+                        <li>URL de callback incorreta no Dashboard do Spotify</li>
+                        <li>Problema na configuração do client ID</li>
+                        <li>Erro no processo de autorização</li>
+                    </ul>
+                `;
+
+                document.getElementById('next-steps').innerHTML = `
+                    <p>🔧 Sugestões:</p>
+                    <ul>
+                        <li>Verifique se a URL de callback está correta no Dashboard</li>
+                        <li>Teste novamente o processo de autenticação</li>
+                        <li>Consulte o sistema de debug</li>
+                    </ul>
+                    <button onclick="window.location.href='/spotify-api-project/debug-completo.html'">
+                        🔍 Ir para o Debug
+                    </button>
+                `;
+            }
+        }
+
+        async function testToken() {
+            const token = localStorage.getItem('spotify_access_token');
+            if (!token) {
+                alert('❌ Token não encontrado no localStorage');
+                return;
+            }
+
+            try {
+                const response = await fetch('https://api.spotify.com/v1/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    alert(`✅ Token válido! Usuário: ${userData.display_name}`);
+                } else {
+                    alert(`❌ Token inválido. Status: ${response.status}`);
+                }
+            } catch (error) {
+                alert(`❌ Erro ao testar token: ${error.message}`);
+            }
+        }
+
+        // Executa quando a página carrega
+        window.addEventListener('DOMContentLoaded', handleCallback);
+    </script>
+</body>
+</html>

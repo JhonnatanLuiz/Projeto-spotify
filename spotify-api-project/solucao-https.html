@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎵 Spotify API - Solução para HTTPS</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            background-color: #1e1e1e;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #1db954;
+        }
+        .step h3 {
+            color: #1db954;
+            margin-top: 0;
+        }
+        .code {
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .warning {
+            background-color: #2d1e1e;
+            border-left-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+        .success {
+            background-color: #1e2d1e;
+            border-left-color: #51cf66;
+            color: #51cf66;
+        }
+        .info {
+            background-color: #1e1f2d;
+            border-left-color: #74c0fc;
+            color: #74c0fc;
+        }
+        button {
+            background-color: #1db954;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #1aa34a;
+        }
+        a {
+            color: #1db954;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .manual-steps {
+            background-color: #2d2d2d;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .manual-steps ol {
+            margin-left: 20px;
+        }
+        .manual-steps li {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎵 Spotify API - Solução para HTTPS</h1>
+        <p>Como resolver o problema de HTTPS vs HTTP</p>
+    </div>
+
+    <div class="step warning">
+        <h3>⚠️ Problema Identificado</h3>
+        <p>Seu Dashboard do Spotify está configurado com HTTPS, mas nosso servidor local está rodando em HTTP.</p>
+        <p><strong>Configuração atual no Dashboard:</strong></p>
+        <div class="code">https://localhost:3000/callback</div>
+        <p><strong>Nosso servidor:</strong> http://localhost:3000</p>
+    </div>
+
+    <div class="step">
+        <h3>🔧 Solução 1: Alterar Dashboard para HTTP (Mais Fácil)</h3>
+        <p>Vamos alterar o Dashboard para usar HTTP e IP 127.0.0.1:</p>
+        
+        <div class="manual-steps">
+            <ol>
+                <li>Acesse <a href="https://developer.spotify.com/dashboard" target="_blank">Spotify Developer Dashboard</a></li>
+                <li>Clique no app "Spotify_clone"</li>
+                <li>Clique em "Settings"</li>
+                <li>Na seção "Redirect URIs", <strong>remova</strong>:
+                    <div class="code">https://localhost:3000/callback</div>
+                </li>
+                <li>Adicione uma dessas opções (conforme nova política 2025):
+                    <div class="code">http://127.0.0.1:3000/callback</div>
+                    <strong>ou</strong>
+                    <div class="code">http://[::1]:3000/callback</div>
+                </li>
+                <li>Clique em "Save"</li>
+            </ol>
+        </div>
+
+        <button onclick="updateConfig('http://127.0.0.1:3000/callback')">🔄 Atualizar para 127.0.0.1</button>
+        <button onclick="updateConfig('http://[::1]:3000/callback')">🔄 Atualizar para IPv6</button>
+    </div>
+
+    <div class="step info">
+        <h3>📋 Solução 2: Usar Servidor HTTPS (Avançado)</h3>
+        <p>Se você tem certificado SSL ou quer usar HTTPS:</p>
+        
+        <div class="manual-steps">
+            <ol>
+                <li>Instale um servidor HTTPS (ex: live-server, http-server)</li>
+                <li>Ou use um proxy reverso (ex: ngrok)</li>
+                <li>Configure certificado SSL self-signed</li>
+                <li>Mantenha o Dashboard com: <code>https://localhost:3000/callback</code></li>
+            </ol>
+        </div>
+
+        <button onclick="showHTTPSInstructions()">📋 Instruções HTTPS</button>
+        <button onclick="showNgrokInstructions()">🌐 Usar Ngrok</button>
+    </div>
+
+    <div class="step success">
+        <h3>✅ Recomendação</h3>
+        <p><strong>Use a Solução 1</strong> - é mais simples e funciona perfeitamente para desenvolvimento local.</p>
+        <p>Depois de alterar o Dashboard, teste aqui:</p>
+        
+        <div id="test-area">
+            <button onclick="testWithIP('127.0.0.1')">🧪 Testar com 127.0.0.1</button>
+            <button onclick="testWithIP('[::1]')">🧪 Testar com IPv6</button>
+            <button onclick="openApp()">🎵 Abrir Aplicação</button>
+        </div>
+        
+        <div id="test-results" style="margin-top: 20px; padding: 15px; background-color: #2d2d2d; border-radius: 5px;">
+            <strong>Status:</strong> <span id="status">Aguardando teste...</span>
+        </div>
+    </div>
+
+    <script>
+        let currentConfig = 'https://localhost:3000/callback';
+
+        function updateConfig(newUri) {
+            currentConfig = newUri;
+            document.getElementById('status').textContent = `Configuração atualizada para: ${newUri}`;
+            document.getElementById('status').style.color = '#74c0fc';
+            
+            // Atualiza a configuração
+            fetch('/spotify-api-project/config/config.js')
+                .then(response => response.text())
+                .then(data => {
+                    console.log('Configuração será atualizada para:', newUri);
+                    alert(`✅ Configuração atualizada!\\n\\nNovo Redirect URI: ${newUri}\\n\\nAgora altere o Dashboard e teste a aplicação.`);
+                })
+                .catch(error => {
+                    console.error('Erro ao atualizar configuração:', error);
+                });
+        }
+
+        function showHTTPSInstructions() {
+            alert(`📋 Instruções para HTTPS:\\n\\n1. Instale OpenSSL\\n2. Gere certificado: openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes\\n3. Use servidor HTTPS\\n4. Mantenha Dashboard com: https://localhost:3000/callback`);
+        }
+
+        function showNgrokInstructions() {
+            alert(`🌐 Instruções para Ngrok:\\n\\n1. Instale ngrok: https://ngrok.com\\n2. Execute: ngrok http 3000\\n3. Use URL HTTPS do ngrok no Dashboard\\n4. Atualize REDIRECT_URI no código`);
+        }
+
+        function testWithIP(ip) {
+            const testUrl = `http://${ip}:3000/spotify-api-project/test-auth.html`;
+            window.open(testUrl, '_blank');
+            document.getElementById('status').textContent = `Testando com IP: ${ip}`;
+            document.getElementById('status').style.color = '#74c0fc';
+        }
+
+        function openApp() {
+            window.open('http://localhost:3000/spotify-api-project/src/index.html', '_blank');
+        }
+
+        // Configuração inicial
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('status').textContent = `Configuração atual: ${currentConfig}`;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Debug Spotify OAuth - Completo</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .section {
+            background-color: #1e1e1e;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #1db954;
+        }
+        .section h3 {
+            color: #1db954;
+            margin-top: 0;
+        }
+        .code {
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .error {
+            background-color: #2d1b1b;
+            border-left-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+        .success {
+            background-color: #1b2d1b;
+            border-left-color: #51cf66;
+            color: #51cf66;
+        }
+        .info {
+            background-color: #1b1f2d;
+            border-left-color: #74c0fc;
+            color: #74c0fc;
+        }
+        button {
+            background-color: #1db954;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #1aa34a;
+        }
+        #debug-output {
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .url-test {
+            background-color: #2d2d2d;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .url-test input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #444;
+            background-color: #1e1e1e;
+            color: #fff;
+            border-radius: 3px;
+        }
+        .url-test button {
+            margin: 0;
+            padding: 8px 16px;
+        }
+        .dashboard-check {
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .dashboard-check h4 {
+            color: #1db954;
+            margin-top: 0;
+        }
+        .dashboard-check ul {
+            margin: 10px 0;
+        }
+        .dashboard-check li {
+            margin: 5px 0;
+        }
+        .warning {
+            background-color: #2d2d1b;
+            border-left-color: #ffcc02;
+            color: #ffcc02;
+        }
+        .step {
+            background-color: #2d2d2d;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #1db954;
+        }
+        .step h5 {
+            color: #1db954;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Completo do Spotify OAuth</h1>
+    
+    <div class="section">
+        <h3>📋 Informações do Sistema</h3>
+        <div id="system-info">
+            <p><strong>URL atual:</strong> <span id="current-url"></span></p>
+            <p><strong>User Agent:</strong> <span id="user-agent"></span></p>
+            <p><strong>Protocolo:</strong> <span id="protocol"></span></p>
+            <p><strong>Host:</strong> <span id="host"></span></p>
+            <p><strong>Porta:</strong> <span id="port"></span></p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>🔧 Configuração Atual</h3>
+        <div class="code" id="current-config">Carregando...</div>
+        <button onclick="loadConfig()">🔄 Recarregar Configuração</button>
+    </div>
+
+    <div class="section warning">
+        <h3>⚠️ Passo a Passo para Resolver o Erro</h3>
+        <div class="step">
+            <h5>Passo 1: Verifique o Dashboard do Spotify</h5>
+            <p>Acesse: <a href="https://developer.spotify.com/dashboard" target="_blank">https://developer.spotify.com/dashboard</a></p>
+            <p>Na seção <strong>Redirect URIs</strong>, deve conter EXATAMENTE:</p>
+            <div class="code">http://127.0.0.1:3000/callback</div>
+        </div>
+        
+        <div class="step">
+            <h5>Passo 2: Limpe o Cache do Navegador</h5>
+            <p>Pressione <strong>Ctrl+Shift+Delete</strong> ou <strong>F5</strong> para recarregar sem cache</p>
+        </div>
+        
+        <div class="step">
+            <h5>Passo 3: Teste a Autenticação</h5>
+            <p>Use o botão abaixo para testar com a URL correta:</p>
+            <button onclick="testAuthCorrect()">🚀 Testar Autenticação (URL Correta)</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>🎯 Verificação do Dashboard</h3>
+        <div class="dashboard-check">
+            <h4>Configurações obrigatórias no Dashboard:</h4>
+            <ul>
+                <li>✅ <strong>App name:</strong> Seu nome de aplicativo</li>
+                <li>✅ <strong>App description:</strong> Descrição do seu app</li>
+                <li>✅ <strong>Website:</strong> http://localhost:3000</li>
+                <li>🔍 <strong>Redirect URIs:</strong> <code>http://127.0.0.1:3000/callback</code></li>
+                <li>✅ <strong>Which API/SDKs are you planning to use:</strong> Web API</li>
+            </ul>
+            <p><strong>CRÍTICO:</strong> A URL deve ser EXATAMENTE (sem barra final):</p>
+            <div class="code">http://127.0.0.1:3000/callback</div>
+            <p>⚠️ <strong>NÃO</strong> use estas URLs (irão falhar):</p>
+            <ul>
+                <li>❌ <code>https://127.0.0.1:3000/callback</code> (HTTPS)</li>
+                <li>❌ <code>http://localhost:3000/callback</code> (localhost)</li>
+                <li>❌ <code>https://localhost:3000/callback</code> (HTTPS + localhost)</li>
+                <li>❌ <code>http://127.0.0.1:3000/callback/</code> (barra final)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>🔗 Teste de URLs de Autenticação</h3>
+        <p>Teste diferentes URLs para identificar qual está funcionando:</p>
+        
+        <div class="url-test">
+            <input type="text" id="test-url-1" value="http://127.0.0.1:3000/callback" readonly>
+            <button onclick="testURL('test-url-1')">✅ Testar (Correta)</button>
+        </div>
+        
+        <div class="url-test">
+            <input type="text" id="test-url-2" value="http://localhost:3000/callback" readonly>
+            <button onclick="testURL('test-url-2')">❌ Testar (Pode falhar)</button>
+        </div>
+        
+        <div class="url-test">
+            <input type="text" id="test-url-3" value="https://localhost:3000/callback" readonly>
+            <button onclick="testURL('test-url-3')">❌ Testar (Antigo)</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>🚀 Gerador de URL de Autorização</h3>
+        <p>Gera a URL exata que será usada para autenticação:</p>
+        <button onclick="generateAuthURL()">🔗 Gerar URL de Autorização</button>
+        <div class="code" id="auth-url-output"></div>
+    </div>
+
+    <div class="section">
+        <h3>📊 Log de Debug</h3>
+        <div id="debug-output"></div>
+        <button onclick="clearDebug()">🧹 Limpar Log</button>
+        <button onclick="exportDebugInfo()">📋 Exportar Info de Debug</button>
+    </div>
+
+    <script>
+        // Configuração do Spotify (usando a configuração atual)
+        const SPOTIFY_CONFIG = {
+            CLIENT_ID: 'ec8f1fadc6924058a977b84e6d2bf776',
+            CLIENT_SECRET: 'f417409093fc4ae4b7805573eb9f8230',
+            REDIRECT_URI: 'http://127.0.0.1:3000/callback',
+            SCOPES: [
+                'user-read-private',
+                'user-read-email',
+                'user-read-playback-state',
+                'user-modify-playback-state',
+                'user-read-currently-playing',
+                'playlist-read-private',
+                'playlist-read-collaborative',
+                'user-read-recently-played',
+                'user-top-read',
+                'streaming'
+            ].join(' ')
+        };
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('debug-output');
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#51cf66' : type === 'warning' ? '#ffcc02' : '#74c0fc';
+            output.innerHTML += `<div style="color: ${color};">[${time}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearDebug() {
+            document.getElementById('debug-output').innerHTML = '';
+        }
+
+        function loadSystemInfo() {
+            document.getElementById('current-url').textContent = window.location.href;
+            document.getElementById('user-agent').textContent = navigator.userAgent;
+            document.getElementById('protocol').textContent = window.location.protocol;
+            document.getElementById('host').textContent = window.location.hostname;
+            document.getElementById('port').textContent = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+        }
+
+        function loadConfig() {
+            const configText = `CLIENT_ID: ${SPOTIFY_CONFIG.CLIENT_ID}
+CLIENT_SECRET: ${SPOTIFY_CONFIG.CLIENT_SECRET ? '[CONFIGURADO]' : '[NÃO CONFIGURADO]'}
+REDIRECT_URI: ${SPOTIFY_CONFIG.REDIRECT_URI}
+SCOPES: ${SPOTIFY_CONFIG.SCOPES}`;
+            
+            document.getElementById('current-config').textContent = configText;
+            log('Configuração carregada com sucesso', 'success');
+        }
+
+        function testAuthCorrect() {
+            const correctUri = 'http://127.0.0.1:3000/callback';
+            log(`🎯 Testando autenticação com URL CORRETA: ${correctUri}`, 'success');
+            
+            const params = new URLSearchParams({
+                response_type: 'token',
+                client_id: SPOTIFY_CONFIG.CLIENT_ID,
+                redirect_uri: correctUri,
+                scope: SPOTIFY_CONFIG.SCOPES,
+                show_dialog: 'true'
+            });
+            
+            const authUrl = `https://accounts.spotify.com/authorize?${params.toString()}`;
+            log(`URL de autorização gerada: ${authUrl}`, 'info');
+            
+            // Abre a URL de autorização
+            window.open(authUrl, '_blank');
+            log('🚀 Abrindo página de autorização do Spotify...', 'info');
+        }
+
+        function testURL(inputId) {
+            const input = document.getElementById(inputId);
+            const url = input.value;
+            
+            log(`🧪 Testando URL: ${url}`, 'info');
+            
+            const params = new URLSearchParams({
+                response_type: 'token',
+                client_id: SPOTIFY_CONFIG.CLIENT_ID,
+                redirect_uri: url,
+                scope: SPOTIFY_CONFIG.SCOPES,
+                show_dialog: 'true'
+            });
+            
+            const authUrl = `https://accounts.spotify.com/authorize?${params.toString()}`;
+            log(`URL de autorização: ${authUrl}`, 'info');
+            
+            // Abre a URL para teste
+            window.open(authUrl, '_blank');
+            log(`🌐 Abrindo teste para: ${url}`, 'info');
+        }
+
+        function generateAuthURL() {
+            try {
+                const params = new URLSearchParams({
+                    response_type: 'token',
+                    client_id: SPOTIFY_CONFIG.CLIENT_ID,
+                    redirect_uri: SPOTIFY_CONFIG.REDIRECT_URI,
+                    scope: SPOTIFY_CONFIG.SCOPES,
+                    show_dialog: 'true'
+                });
+                
+                const authUrl = `https://accounts.spotify.com/authorize?${params.toString()}`;
+                
+                document.getElementById('auth-url-output').innerHTML = `
+                    <div style="word-break: break-all;">${authUrl}</div>
+                    <br>
+                    <button onclick="window.open('${authUrl}', '_blank')">🚀 Abrir URL de Autorização</button>
+                    <button onclick="copyToClipboard('${authUrl}')">📋 Copiar URL</button>
+                `;
+                
+                log('✅ URL de autorização gerada com sucesso', 'success');
+                
+                // Analisa os parâmetros
+                const urlObj = new URL(authUrl);
+                log(`🔍 Analisando parâmetros:`, 'info');
+                log(`   - Host: ${urlObj.host}`, 'info');
+                log(`   - Client ID: ${urlObj.searchParams.get('client_id')}`, 'info');
+                log(`   - Redirect URI: ${urlObj.searchParams.get('redirect_uri')}`, 'info');
+                log(`   - Response Type: ${urlObj.searchParams.get('response_type')}`, 'info');
+                
+            } catch (error) {
+                log(`❌ Erro ao gerar URL: ${error.message}`, 'error');
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                log('📋 URL copiada para a área de transferência', 'success');
+            }).catch(err => {
+                log(`❌ Erro ao copiar: ${err.message}`, 'error');
+            });
+        }
+
+        function exportDebugInfo() {
+            const debugInfo = {
+                timestamp: new Date().toISOString(),
+                currentUrl: window.location.href,
+                userAgent: navigator.userAgent,
+                protocol: window.location.protocol,
+                hostname: window.location.hostname,
+                port: window.location.port,
+                config: SPOTIFY_CONFIG,
+                debugLog: document.getElementById('debug-output').innerHTML
+            };
+            
+            const blob = new Blob([JSON.stringify(debugInfo, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `spotify-debug-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            log('📋 Informações de debug exportadas', 'success');
+        }
+
+        // Inicialização
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSystemInfo();
+            loadConfig();
+            log('🔧 Sistema de debug iniciado', 'success');
+            
+            // Verifica se há parâmetros de callback na URL atual
+            if (window.location.hash.includes('access_token')) {
+                log('🎉 SUCCESS: Callback com token detectado na URL atual!', 'success');
+                log(`Token hash: ${window.location.hash}`, 'success');
+                
+                // Extrai o token
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                const accessToken = hashParams.get('access_token');
+                if (accessToken) {
+                    log(`🔑 Access Token obtido: ${accessToken.substring(0, 20)}...`, 'success');
+                }
+            }
+            
+            // Verifica se há erros na URL
+            if (window.location.href.includes('error=')) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const error = urlParams.get('error');
+                const errorDescription = urlParams.get('error_description');
+                log(`❌ ERRO detectado na URL: ${error}`, 'error');
+                if (errorDescription) {
+                    log(`📝 Descrição do erro: ${errorDescription}`, 'error');
+                }
+            }
+            
+            // Verifica se há hash de erro
+            if (window.location.hash.includes('error=')) {
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                const error = hashParams.get('error');
+                const errorDescription = hashParams.get('error_description');
+                log(`❌ ERRO no hash: ${error}`, 'error');
+                if (errorDescription) {
+                    log(`📝 Descrição: ${errorDescription}`, 'error');
+                }
+            }
+            
+            // Instrução para o usuário
+            log('👋 Olá! Use este sistema para debugar problemas de autenticação do Spotify.', 'info');
+            log('📝 Siga os passos na seção amarela acima para resolver o erro INVALID_CLIENT.', 'warning');
+        });
+    </script>
+</body>
+</html>

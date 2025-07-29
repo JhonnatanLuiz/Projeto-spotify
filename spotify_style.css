@@ -1,0 +1,337 @@
+     body {
+            background-color: #121212; /* Fundo escuro principal do Spotify */
+            color: #b3b3b3; /* Cor de texto padrão mais clara */
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Fonte similar ao Spotify */
+            display: grid;
+            grid-template-areas:
+                "sidebar main-view"
+                "now-playing-bar now-playing-bar";
+            grid-template-columns: 250px 1fr; /* Largura da sidebar e o resto para o conteúdo */
+            grid-template-rows: 1fr auto; /* Conteúdo ocupa o espaço restante, player tem altura auto */
+            height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Evitar scrollbars no body se não for necessário */
+        }
+
+        /* BARRA LATERAL */
+        .sidebar {
+            grid-area: sidebar;
+            background-color: #040404; /* Preto para a sidebar */
+            padding: 24px;
+            color: #b3b3b3;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* Scroll se a lista de playlists for grande */
+        }
+        .sidebar .logo img {
+            max-width: 130px;
+            margin-bottom: 24px;
+        }
+        .sidebar nav ul {
+            list-style: none;
+            padding: 0;
+        }
+        .sidebar nav ul li a {
+            color: #b3b3b3;
+            text-decoration: none;
+            padding: 10px 0;
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+            border-radius: 4px;
+            transition: color 0.2s ease;
+        }
+        .sidebar nav ul li a:hover,
+        .sidebar nav ul li a.active {
+            color: #fff;
+            background-color: #282828; /* Leve destaque no hover/ativo */
+        }
+        .sidebar nav ul li a i {
+            margin-right: 16px;
+            font-size: 1.4em; /* Tamanho dos ícones */
+            width: 24px; /* Largura fixa para alinhar texto */
+            text-align: center;
+        }
+        .sidebar .playlists-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #282828;
+            flex-grow: 1; /* Faz esta seção ocupar o espaço restante na sidebar */
+        }
+        .sidebar .playlists-section h3 {
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: .16em;
+            margin-bottom: 10px;
+            color: #b3b3b3;
+        }
+         .sidebar .create-playlist-btn, .sidebar .liked-songs-btn {
+             background: none; border: none; color: #b3b3b3; font-weight: bold;
+             padding: 10px 0; text-align: left; display: flex; align-items: center; width: 100%;
+             transition: color 0.2s ease;
+         }
+         .sidebar .create-playlist-btn:hover, .sidebar .liked-songs-btn:hover { color: #fff; }
+         .sidebar .create-playlist-btn i, .sidebar .liked-songs-btn i {
+             width: 24px; height: 24px; margin-right: 16px; font-size: 1.2em;
+             display: inline-flex; justify-content: center; align-items: center;
+             background-color: #b3b3b3; color: #000; /* Cor do ícone pode variar */
+             border-radius: 2px;
+         }
+        .sidebar .liked-songs-btn i { background: linear-gradient(135deg, #450af5, #c4efd9); color: #fff; }
+
+
+        /* ÁREA DE CONTEÚDO PRINCIPAL */
+        .main-view {
+            grid-area: main-view;
+            background: linear-gradient(rgba(40,40,40,0.6), #121212 70%), url('https://placehold.co/1920x1080/121212/1DB954?text=Spotify') no-repeat center center;
+            background-size: cover; /* Imagem de fundo placeholder */
+            overflow-y: auto; /* Scroll vertical para o conteúdo */
+            padding: 24px 32px;
+        }
+        /* Top bar dentro do main-view para navegação e perfil */
+        .main-view-top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            margin-bottom: 24px; /* Espaço antes do conteúdo principal */
+            /* position: sticky; top:0; background:rgba(18,18,18,0.8); z-index:10; backdrop-filter: blur(5px); */ /* Efeito de header fixo/blur opcional */
+        }
+        .main-view-top-bar .nav-buttons button {
+            background-color: rgba(0,0,0,0.7);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            margin-right: 16px;
+        }
+        .main-view-top-bar .user-profile button {
+            background-color: rgba(0,0,0,0.7);
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            padding: 4px 10px 4px 4px;
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+        }
+        .main-view-top-bar .user-profile img {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        /* CARROSSEL */
+        .carousel-section h2 {
+            color: #fff;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+        /* Card de música/album para carrossel e buscas */
+        .content-card {
+            background-color: #181818; /* Cor de card do Spotify */
+            padding: 16px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+            text-decoration: none;
+            color: #fff;
+            height: 100%; /* Para preencher a altura da coluna */
+            display: flex;
+            flex-direction: column;
+        }
+        .content-card:hover {
+            background-color: #282828;
+        }
+        .content-card img {
+            width: 100%;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            aspect-ratio: 1/1; /* Imagens quadradas */
+            object-fit: cover;
+        }
+        .content-card .card-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .content-card .card-subtitle {
+            font-size: 0.875rem;
+            color: #b3b3b3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-grow: 1; /* Empurra os botões para baixo se houver */
+        }
+        .play-button-overlay { /* Botão Play sobre a imagem do card */
+            position: absolute;
+            bottom: 20px; /* Ajuste conforme a altura do texto */
+            right: 20px;
+            background-color: #1db954; /* Verde Spotify */
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            cursor: pointer;
+        }
+        .content-card:hover .play-button-overlay {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+
+        /* PLAYER (NOW PLAYING BAR) */
+        .now-playing-bar {
+            grid-area: now-playing-bar;
+            background-color: #181818; /* Fundo escuro para o player */
+            border-top: 1px solid #282828;
+            padding: 0 16px;
+            height: 90px;
+            display: grid; /* Usaremos grid para layout interno do player */
+            grid-template-columns: 1fr 2fr 1fr; /* Artista/Capa | Controles | Volume/Extras */
+            align-items: center;
+            gap: 24px;
+        }
+        .now-playing-bar .song-info {
+            display: flex;
+            align-items: center;
+        }
+        .now-playing-bar .song-info img {
+            width: 56px;
+            height: 56px;
+            margin-right: 12px;
+            border-radius: 4px;
+        }
+        .now-playing-bar .song-info .track-name {
+            color: #fff;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .now-playing-bar .song-info .artist-name {
+            color: #b3b3b3;
+            font-size: 0.75rem;
+        }
+         .now-playing-bar .song-info .like-btn {
+             background: none; border: none; color: #b3b3b3; font-size: 1em; margin-left: 16px;
+         }
+         .now-playing-bar .song-info .like-btn:hover,
+         .now-playing-bar .song-info .like-btn.active { color: #1db954; }
+
+
+        .player-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .player-controls .buttons {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+        .player-controls .buttons button {
+            background: none;
+            border: none;
+            color: #b3b3b3;
+            font-size: 1.2em;
+        }
+        .player-controls .buttons button:hover { color: #fff; }
+        .player-controls .play-pause-btn {
+            background-color: #fff;
+            color: #000;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1em;
+            transition: transform 0.1s ease;
+        }
+        .player-controls .play-pause-btn:hover { transform: scale(1.05); }
+
+        .playback-bar {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            max-width: 450px; /* Limita largura da barra */
+            gap: 8px;
+            font-size: 0.75rem;
+        }
+        .playback-bar .progress-bar-container {
+            flex-grow: 1;
+            height: 4px;
+            background-color: #535353;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        .playback-bar .progress {
+            height: 100%;
+            width: 0%; /* Será atualizado pelo JS */
+            background-color: #fff; /* Ou verde #1db954 */
+            border-radius: 2px;
+            transition: width 0.1s linear; /* Suaviza a barra */
+        }
+
+
+        .player-right-controls {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+        }
+        .player-right-controls button {
+            background: none;
+            border: none;
+            color: #b3b3b3;
+        }
+        .player-right-controls button:hover { color: #fff; }
+        .player-right-controls .volume-bar-container {
+            width: 100px;
+            height: 4px;
+            background-color: #535353;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        .player-right-controls .volume-progress {
+            height: 100%;
+            width: 70%; /* Volume inicial */
+            background-color: #fff;
+            border-radius: 2px;
+        }
+
+        /* Para layout responsivo da sidebar e main view */
+        @media (max-width: 768px) {
+            body {
+                grid-template-areas:
+                    "main-view"
+                    "now-playing-bar";
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            .sidebar {
+                display: none; /* Esconde sidebar em mobile - Spotify mobile tem um bottom nav */
+                /* Uma abordagem mobile comum seria ter uma barra de navegação inferior
+                   ou um menu "hambúrguer" que abre a sidebar */
+            }
+             .now-playing-bar {
+                 grid-template-columns: auto 1fr; /* Capa e Controles */
+                 gap: 10px;
+             }
+             .player-right-controls { display: none; } /* Esconde controles de volume etc. em mobile */
+             .main-view-top-bar .nav-buttons button:first-child { display: none; } /* Esconde botão "voltar" em mobile se a sidebar está oculta */
+        }

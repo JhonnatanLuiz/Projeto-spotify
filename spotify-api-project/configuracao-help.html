@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎵 Spotify API - Instruções de Configuração</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            background-color: #1e1e1e;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #1db954;
+        }
+        .step h3 {
+            color: #1db954;
+            margin-top: 0;
+        }
+        .code {
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .warning {
+            background-color: #2d1e1e;
+            border-left-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+        .success {
+            background-color: #1e2d1e;
+            border-left-color: #51cf66;
+            color: #51cf66;
+        }
+        .info {
+            background-color: #1e1f2d;
+            border-left-color: #74c0fc;
+            color: #74c0fc;
+        }
+        button {
+            background-color: #1db954;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #1aa34a;
+        }
+        .spotify-config {
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .spotify-config strong {
+            color: #1db954;
+        }
+        a {
+            color: #1db954;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎵 Configuração do Spotify API</h1>
+        <p>Instruções para configurar corretamente o Spotify Developer Dashboard</p>
+    </div>
+
+    <div class="step warning">
+        <h3>⚠️ Problema Identificado</h3>
+        <p>O Spotify Dashboard está configurado para HTTPS, mas nossa aplicação está rodando em HTTP. Vamos resolver isso de duas formas:</p>
+        <ul>
+            <li><strong>Opção 1:</strong> Alterar o Dashboard para aceitar HTTP (mais fácil)</li>
+            <li><strong>Opção 2:</strong> Usar um servidor HTTPS (mais complexo)</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h3>🔧 Opção 1: Alterar Configuração do Dashboard (Recomendado)</h3>
+        <p>Vamos alterar o Spotify Developer Dashboard para aceitar HTTP:</p>
+        
+        <ol>
+            <li>Acesse o <a href="https://developer.spotify.com/dashboard" target="_blank">Spotify Developer Dashboard</a></li>
+            <li>Clique no seu app "<strong>Spotify_clone</strong>"</li>
+            <li>Clique em "<strong>Settings</strong>"</li>
+            <li>Na seção "<strong>Redirect URIs</strong>", remova:</li>
+            <div class="code">https://localhost:3000/callback</div>
+            <li>Adicione esta URI (com HTTP):</li>
+            <div class="code">http://localhost:3000/callback</div>
+            <li>Clique em "<strong>Save</strong>"</li>
+        </ol>
+        
+        <p><strong>Depois de fazer essa alteração:</strong></p>
+        <button onclick="updateConfig()">🔄 Atualizar Configuração</button>
+        <button onclick="testAuth()">🧪 Testar Autenticação</button>
+    </div>
+
+    <div class="step info">
+        <h3>📋 Configuração Atual</h3>
+        <div class="spotify-config">
+            <strong>Client ID:</strong> ec8f1fadc6924058a977b84e6d2bf776<br>
+            <strong>Client Secret:</strong> f417409093fc4ae4b7805573eb9f8230<br>
+            <strong>Redirect URI Atual:</strong> <span id="current-uri">https://localhost:3000/callback</span><br>
+            <strong>Redirect URI Correto:</strong> http://localhost:3000/callback
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>🚀 Opção 2: Usar Servidor HTTPS (Avançado)</h3>
+        <p>Se você não puder alterar o Dashboard, podemos usar um servidor HTTPS:</p>
+        
+        <button onclick="startHTTPS()">🔐 Iniciar Servidor HTTPS</button>
+        <button onclick="downloadCert()">📄 Baixar Certificado</button>
+        
+        <div class="code">
+            # Para usar servidor HTTPS, execute:
+            python spotify-api-project/https_server.py
+        </div>
+    </div>
+
+    <div class="step success">
+        <h3>✅ Teste Rápido</h3>
+        <p>Depois de configurar o Dashboard, teste aqui:</p>
+        
+        <div id="test-results" style="margin: 15px 0; padding: 10px; background-color: #2d2d2d; border-radius: 5px;">
+            <strong>Status:</strong> <span id="status">Aguardando configuração...</span>
+        </div>
+        
+        <button onclick="testConnection()">🔍 Testar Conexão</button>
+        <button onclick="openApp()">🎵 Abrir Aplicação</button>
+    </div>
+
+    <script>
+        function updateConfig() {
+            // Atualiza a configuração para HTTP
+            const currentUri = document.getElementById('current-uri');
+            currentUri.textContent = 'http://localhost:3000/callback';
+            currentUri.style.color = '#51cf66';
+            
+            alert('✅ Configuração atualizada para HTTP!\\nAgora teste a aplicação.');
+        }
+
+        function testAuth() {
+            // Abre a página de teste
+            window.open('http://localhost:3000/spotify-api-project/test-auth.html', '_blank');
+        }
+
+        function startHTTPS() {
+            alert('🔐 Para usar HTTPS:\\n\\n1. Abra um terminal\\n2. Execute: python spotify-api-project/https_server.py\\n3. Acesse: https://localhost:3000');
+        }
+
+        function downloadCert() {
+            alert('📄 Certificado será gerado automaticamente pelo servidor HTTPS.');
+        }
+
+        function testConnection() {
+            const status = document.getElementById('status');
+            status.textContent = 'Testando conexão...';
+            status.style.color = '#74c0fc';
+            
+            // Simula teste de conexão
+            setTimeout(() => {
+                fetch('http://localhost:3000/spotify-api-project/config/config.js')
+                    .then(response => {
+                        if (response.ok) {
+                            status.textContent = '✅ Servidor funcionando!';
+                            status.style.color = '#51cf66';
+                        } else {
+                            status.textContent = '❌ Servidor não encontrado';
+                            status.style.color = '#ff6b6b';
+                        }
+                    })
+                    .catch(error => {
+                        status.textContent = '❌ Erro de conexão';
+                        status.style.color = '#ff6b6b';
+                    });
+            }, 1000);
+        }
+
+        function openApp() {
+            window.open('http://localhost:3000/spotify-api-project/src/index.html', '_blank');
+        }
+
+        // Verifica status ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            testConnection();
+        });
+    </script>
+</body>
+</html>

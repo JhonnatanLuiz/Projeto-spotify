@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Spotify API</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .error {
+            color: #ff6b6b;
+            background-color: #2d1b1b;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #51cf66;
+            background-color: #1b2d1b;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #74c0fc;
+            background-color: #1b1f2d;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #1db954;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #1aa34a;
+        }
+        #debug-output {
+            background-color: #1e1e1e;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Debug - Spotify API</h1>
+    
+    <div id="status">
+        <h2>Status da Aplicação</h2>
+        <div id="config-status">Verificando configuração...</div>
+        <div id="auth-status">Verificando autenticação...</div>
+        <div id="api-status">Verificando API...</div>
+    </div>
+    
+    <div id="actions">
+        <h2>Ações</h2>
+        <button onclick="testConfig()">Testar Configuração</button>
+        <button onclick="testAuth()">Testar Autenticação</button>
+        <button onclick="testAPI()">Testar API</button>
+        <button onclick="loadFallbackData()">Carregar Dados de Exemplo</button>
+        <button onclick="clearStorage()">Limpar Storage</button>
+    </div>
+    
+    <div id="debug-output"></div>
+
+    <!-- Scripts -->
+    <script src="config/config.js"></script>
+    <script src="src/js/auth.js"></script>
+    <script src="src/js/spotify-api.js"></script>
+    
+    <script>
+        let auth, spotifyAPI;
+        
+        function log(message, type = 'info') {
+            const output = document.getElementById('debug-output');
+            const time = new Date().toLocaleTimeString();
+            output.innerHTML += `[${time}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+            
+            console.log(message);
+        }
+        
+        function updateStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+        
+        function testConfig() {
+            log('=== TESTANDO CONFIGURAÇÃO ===');
+            
+            try {
+                if (typeof SPOTIFY_CONFIG === 'undefined') {
+                    log('❌ SPOTIFY_CONFIG não está definido', 'error');
+                    updateStatus('config-status', 'ERRO: Configuração não carregada', 'error');
+                    return;
+                }
+                
+                log('✅ SPOTIFY_CONFIG carregado');
+                log(`CLIENT_ID: ${SPOTIFY_CONFIG.CLIENT_ID}`);
+                log(`REDIRECT_URI: ${SPOTIFY_CONFIG.REDIRECT_URI}`);
+                log(`SCOPES: ${SPOTIFY_CONFIG.SCOPES}`);
+                
+                if (!SPOTIFY_CONFIG.CLIENT_ID || SPOTIFY_CONFIG.CLIENT_ID === 'SEU_CLIENT_ID_AQUI') {
+                    log('❌ CLIENT_ID não configurado', 'error');
+                    updateStatus('config-status', 'ERRO: CLIENT_ID não configurado', 'error');
+                    return;
+                }
+                
+                if (!SPOTIFY_CONFIG.CLIENT_SECRET || SPOTIFY_CONFIG.CLIENT_SECRET === 'SEU_CLIENT_SECRET_AQUI') {
+                    log('❌ CLIENT_SECRET não configurado', 'error');
+                    updateStatus('config-status', 'ERRO: CLIENT_SECRET não configurado', 'error');
+                    return;
+                }
+                
+                log('✅ Configuração válida');
+                updateStatus('config-status', 'Configuração OK', 'success');
+                
+            } catch (error) {
+                log(`❌ Erro ao testar configuração: ${error.message}`, 'error');
+                updateStatus('config-status', 'ERRO: Falha ao carregar configuração', 'error');
+            }
+        }
+        
+        function testAuth() {
+            log('=== TESTANDO AUTENTICAÇÃO ===');
+            
+            try {
+                auth = new SpotifyAuth();
+                log('✅ Classe SpotifyAuth instanciada');
+                
+                if (auth.isAuthenticated()) {
+                    log('✅ Usuário autenticado');
+                    log(`Token: ${auth.accessToken.substring(0, 20)}...`);
+                    updateStatus('auth-status', 'Autenticado', 'success');
+                } else {
+                    log('❌ Usuário não autenticado');
+                    updateStatus('auth-status', 'Não autenticado', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Erro ao testar autenticação: ${error.message}`, 'error');
+                updateStatus('auth-status', 'ERRO: Falha na autenticação', 'error');
+            }
+        }
+        
+        async function testAPI() {
+            log('=== TESTANDO API ===');
+            
+            try {
+                if (!auth) {
+                    auth = new SpotifyAuth();
+                }
+                
+                spotifyAPI = new SpotifyAPI(auth);
+                log('✅ Classe SpotifyAPI instanciada');
+                
+                if (!auth.isAuthenticated()) {
+                    log('❌ Não é possível testar API sem autenticação');
+                    updateStatus('api-status', 'Necessário autenticação', 'error');
+                    return;
+                }
+                
+                log('Testando getUserProfile...');
+                const profile = await spotifyAPI.getUserProfile();
+                log(`✅ Perfil: ${profile.display_name}`);
+                
+                log('Testando getFeaturedPlaylists...');
+                const playlists = await spotifyAPI.getFeaturedPlaylists(5);
+                log(`✅ ${playlists.playlists.items.length} playlists carregadas`);
+                
+                updateStatus('api-status', 'API funcionando', 'success');
+                
+            } catch (error) {
+                log(`❌ Erro ao testar API: ${error.message}`, 'error');
+                updateStatus('api-status', 'ERRO: Falha na API', 'error');
+            }
+        }
+        
+        function loadFallbackData() {
+            log('=== CARREGANDO DADOS DE EXEMPLO ===');
+            
+            const fallbackData = [
+                { id: 1, title: "Chill Lofi Beat", artist: "Demo Artist", albumArt: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop" },
+                { id: 2, title: "Relaxing Piano", artist: "Piano Master", albumArt: "https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=300&h=300&fit=crop" },
+                { id: 3, title: "Electronic Vibes", artist: "Electronic Producer", albumArt: "https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=300&h=300&fit=crop" }
+            ];
+            
+            fallbackData.forEach(item => {
+                log(`🎵 ${item.title} - ${item.artist}`);
+            });
+            
+            log('✅ Dados de exemplo carregados');
+        }
+        
+        function clearStorage() {
+            log('=== LIMPANDO STORAGE ===');
+            
+            localStorage.removeItem('spotify_access_token');
+            localStorage.removeItem('spotify_token_expiry');
+            
+            log('✅ Storage limpo');
+            updateStatus('auth-status', 'Storage limpo', 'info');
+        }
+        
+        // Inicialização
+        window.addEventListener('DOMContentLoaded', () => {
+            log('=== INICIANDO DEBUG ===');
+            testConfig();
+            testAuth();
+        });
+    </script>
+</body>
+</html>

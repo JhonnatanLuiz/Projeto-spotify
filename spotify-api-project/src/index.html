@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Clone - API Real</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
+    <link rel="stylesheet" href="../../../spotify_style.css">
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo"><a href="#"><img src="https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_CMYK_White.png" alt="Spotify Logo"></a></div>
+        <nav>
+            <ul>
+                <li><a href="#" class="active"><i class="fas fa-home"></i> Início</a></li>
+                <li><a href="#"><i class="fas fa-search"></i> Buscar</a></li>
+                <li><a href="#"><i class="fas fa-book"></i> Sua Biblioteca</a></li>
+            </ul>
+        </nav>
+        <div class="playlists-section">
+            <button class="create-playlist-btn"><i class="fas fa-plus"></i> Criar playlist</button>
+            <button class="liked-songs-btn"><i class="fas fa-heart"></i> Músicas Curtidas</button>
+            <hr style="border-color: #282828; margin: 20px 0;">
+            <div id="user-playlists" class="mt-2" style="overflow-y: auto; max-height: calc(100vh - 350px);"></div>
+        </div>
+    </aside>
+
+    <main class="main-view">
+        <div class="main-view-top-bar">
+            <div class="nav-buttons">
+                <button type="button" title="Voltar"><i class="fas fa-chevron-left"></i></button>
+                <button type="button" title="Avançar"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="ms-auto d-flex align-items-center">
+                <button id="login-btn" class="btn btn-success rounded-pill me-3" style="display: none;">
+                    <i class="fab fa-spotify"></i> Fazer Login com Spotify
+                </button>
+                <div id="user-profile" class="user-profile" style="display: none;">
+                    <div class="dropdown">
+                        <button type="button" class="dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img src="https://via.placeholder.com/28" alt="Avatar" class="rounded-circle">
+                            <span id="user-name">Usuário</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#">Conta</a></li>
+                            <li><a class="dropdown-item" href="#">Perfil</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a id="demo-mode-btn" class="dropdown-item" href="#">
+                                <i class="fas fa-code"></i> Usar Dados Demo
+                            </a></li>
+                            <li><a id="real-mode-btn" class="dropdown-item" href="#" style="display: none;">
+                                <i class="fas fa-music"></i> Voltar aos Dados Reais
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a id="logout-btn" class="dropdown-item" href="#">Sair</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="main-content-area" class="p-4"></div>
+    </main>
+
+    <footer class="now-playing-bar">
+        <div class="song-info">
+            <img id="current-track-image" src="https://placehold.co/56x56/181818/1DB954?text=_" alt="Capa">
+            <div>
+                <div id="current-track-name" class="track-name">Nenhuma música tocando</div>
+                <div id="current-track-artist" class="artist-name"></div>
+            </div>
+            <button class="like-btn ms-3" title="Curtir"><i class="far fa-heart"></i></button>
+        </div>
+        <div class="player-controls">
+            <div class="buttons">
+                <button title="Aleatório"><i class="fas fa-random"></i></button>
+                <button id="prev-btn" title="Anterior"><i class="fas fa-step-backward"></i></button>
+                <button id="play-pause-btn" class="play-pause-btn" title="Play"><i class="fas fa-play"></i></button>
+                <button id="next-btn" title="Próxima"><i class="fas fa-step-forward"></i></button>
+                <button title="Repetir"><i class="fas fa-redo"></i></button>
+            </div>
+            <div class="playback-bar">
+                <span id="current-time">0:00</span>
+                <div class="progress-bar-container" id="progress-bar-container">
+                    <div class="progress" id="progress-bar"></div>
+                </div>
+                <span id="total-duration">0:00</span>
+            </div>
+        </div>
+        <div class="player-right-controls">
+            <button title="Fila"><i class="fas fa-bars"></i></button>
+            <button title="Dispositivos"><i class="fas fa-desktop"></i></button>
+            <button id="volume-icon-btn" title="Volume"><i class="fas fa-volume-up"></i></button>
+            <div class="volume-bar-container" id="volume-bar-container"><div class="volume-progress" id="volume-progress"></div></div>
+        </div>
+        <audio id="audio-player" style="display:none;"></audio>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../config/config.js?v=1.1"></script>
+    <script src="js/auth.js?v=1.1"></script>
+    <script src="js/spotify-api.js?v=1.1"></script>
+    <script src="js/app.js?v=1.1"></script>
+</body>
+</html>

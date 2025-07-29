@@ -1,0 +1,28 @@
+{
+  "name": "spotify-api-project",
+  "version": "1.0.0",
+  "description": "A project that integrates with the Spotify API to manage playlists and play music.",
+  "main": "src/js/app.js",
+  "scripts": {
+    "start": "live-server src",
+    "build": "webpack --mode production",
+    "dev": "webpack --mode development"
+  },
+  "dependencies": {
+    "axios": "^0.21.1",
+    "dotenv": "^10.0.0"
+  },
+  "devDependencies": {
+    "webpack": "^5.24.4",
+    "webpack-cli": "^4.5.0",
+    "live-server": "^1.2.1"
+  },
+  "keywords": [
+    "spotify",
+    "api",
+    "music",
+    "player"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
