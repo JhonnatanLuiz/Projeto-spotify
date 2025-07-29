@@ -75,4 +75,16 @@ class SpotifyAPI {
         const endpoint = `/search?q=${encodeURIComponent(query)}&type=${type}&limit=${limit}`;
         return this.makeRequest(endpoint);
     }
+
+    async getUserPlaylists(limit = 50) {
+        return this.makeRequest(`/me/playlists?limit=${limit}`);
+    }
+
+    async getTopArtists(limit = 20) {
+        return this.makeRequest(`/me/top/artists?limit=${limit}`);
+    }
+
+    async getRecentlyPlayed(limit = 50) {
+        return this.makeRequest(`/me/player/recently-played?limit=${limit}`);
+    }
 }

@@ -130,36 +130,58 @@ document.addEventListener('DOMContentLoaded', () => {
             const avatar = profile.images?.[0]?.url;
             if (avatar) userAvatar.src = avatar;
         }
+        loadUserPlaylists();
     }
 
     // --- Carregamento de Dados ---
     async function loadRealData() {
-        showLoadingMessage('Carregando suas músicas do Spotify...');
+        showLoadingMessage('Carregando suas músicas recentes do Spotify...');
         try {
-            const playlistsData = await spotifyAPI.getFeaturedPlaylists(1);
-            if (!playlistsData || playlistsData.playlists.items.length === 0) {
-                throw new Error("Nenhuma playlist em destaque encontrada.");
-            }
-            const playlist = playlistsData.playlists.items[0];
-            const tracksData = await spotifyAPI.getPlaylistTracks(playlist.id, 50);
-            const tracks = tracksData.items.filter(item => item.track && item.track.preview_url);
-
-            if (tracks.length > 0) {
-                currentPlaylist = tracks.map(item => ({
+            const recentlyPlayedData = await spotifyAPI.getRecentlyPlayed();
+            if (recentlyPlayedData && recentlyPlayedData.items.length > 0) {
+                const tracks = recentlyPlayedData.items.map(item => ({
                     id: item.track.id,
                     title: item.track.name,
                     artist: item.track.artists.map(a => a.name).join(', '),
                     albumArt: item.track.album.images[0]?.url,
+                    uri: item.track.uri,
                     audioUrl: item.track.preview_url
                 }));
+                currentPlaylist = tracks;
                 displayTracks();
-                loadTrack(currentPlaylist[0]);
             } else {
-                loadFallbackData("Nenhuma música com preview encontrada.");
+                // If no recent tracks, load top artists
+                loadTopArtists();
             }
         } catch (error) {
-            console.error('Erro ao carregar dados reais:', error);
-            loadFallbackData('Não foi possível carregar os dados do Spotify.');
+            console.error('Erro ao carregar músicas recentes:', error);
+            loadTopArtists(); // Fallback to top artists
+        }
+    }
+
+    async function loadTopArtists() {
+        showLoadingMessage('Carregando seus artistas favoritos do Spotify...');
+        try {
+            const topArtistsData = await spotifyAPI.getTopArtists();
+            if (topArtistsData && topArtistsData.items.length > 0) {
+                const artists = topArtistsData.items.map(artist => ({
+                    id: artist.id,
+                    title: artist.name,
+                    artist: 'Artista',
+                    albumArt: artist.images[0]?.url,
+                    uri: artist.uri
+                }));
+                const container = document.createElement('div');
+                container.className = 'row';
+                artists.forEach(item => container.appendChild(createContentCard(item)));
+                mainContentArea.innerHTML = '';
+                mainContentArea.appendChild(container);
+            } else {
+                throw new Error("Nenhum artista encontrado.");
+            }
+        } catch (error) {
+            console.error('Erro ao carregar artistas:', error);
+            loadFallbackData('Não foi possível carregar seus artistas favoritos.');
         }
     }
 
@@ -339,6 +361,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function loadUserPlaylists() {
+        const playlistsData = await spotifyAPI.getUserPlaylists();
+        if (playlistsData && playlistsData.items) {
+            const userPlaylists = document.getElementById('user-playlists');
+            userPlaylists.innerHTML = '';
+            playlistsData.items.forEach(playlist => {
+                const playlistElement = document.createElement('a');
+                playlistElement.href = '#';
+                playlistElement.className = 'list-group-item list-group-item-action bg-transparent border-0 text-white';
+                playlistElement.textContent = playlist.name;
+                playlistElement.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    showLoadingMessage(`Carregando a playlist "${playlist.name}"...`);
+                    const tracksData = await spotifyAPI.getPlaylistTracks(playlist.id);
+                    const tracks = tracksData.items.filter(item => item.track && (item.track.preview_url || item.track.uri));
+                    if (tracks.length > 0) {
+                        currentPlaylist = tracks.map(item => ({
+                            id: item.track.id,
+                            title: item.track.name,
+                            artist: item.track.artists.map(a => a.name).join(', '),
+                            albumArt: item.track.album.images[0]?.url,
+                            uri: item.track.uri,
+                            audioUrl: item.track.preview_url
+                        }));
+                        displayTracks();
+                        if (!isDemoMode && currentPlaylist.length > 0) {
+                            playTrack(currentPlaylist[0].uri);
+                        }
+                    } else {
+                        showErrorMessage(`A playlist "${playlist.name}" não contém músicas com preview.`);
+                    }
+                });
+                userPlaylists.appendChild(playlistElement);
+            });
+        }
+    }
+
     // --- Funções de Modo Demo ---
     function activateDemoMode() {
         console.log("Ativando modo demo...");
@@ -421,6 +480,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('search-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 handleSearch();
+            }
+        });
+        document.getElementById('home-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (auth.isAuthenticated() && !isDemoMode) {
+                loadRealData();
+            } else {
+                loadFallbackData();
             }
         });
         
