@@ -140,9 +140,6 @@
                 if (accessToken) {
                     updateStatus('success', '🎉 Token recebido!', 'Token de acesso obtido diretamente!');
                     saveToken(accessToken, tokenType, expiresIn);
-                    setTimeout(() => {
-                        window.location.href = "/spotify-api-project/src/index.html";
-                    }, 1000);
                 }
             }
             // Nenhum parâmetro encontrado

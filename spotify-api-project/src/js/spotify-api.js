@@ -61,30 +61,5 @@ class SpotifyAPI {
         return this.makeRequest(`/playlists/${playlistId}/tracks?limit=${limit}`);
     }
 
-    async play(deviceId, spotifyUri) {
-        const endpoint = `/me/player/play?device_id=${deviceId}`;
-        const options = {
-            method: 'PUT',
-            body: JSON.stringify({ uris: [spotifyUri] }),
-        };
-        return this.makeRequest(endpoint, options);
-    }
-
-    async search(query, types = ['track', 'artist', 'album'], limit = 20) {
-        const type = types.join(',');
-        const endpoint = `/search?q=${encodeURIComponent(query)}&type=${type}&limit=${limit}`;
-        return this.makeRequest(endpoint);
-    }
-
-    async getUserPlaylists(limit = 50) {
-        return this.makeRequest(`/me/playlists?limit=${limit}`);
-    }
-
-    async getTopArtists(limit = 20) {
-        return this.makeRequest(`/me/top/artists?limit=${limit}`);
-    }
-
-    async getRecentlyPlayed(limit = 50) {
-        return this.makeRequest(`/me/player/recently-played?limit=${limit}`);
     }
 }
