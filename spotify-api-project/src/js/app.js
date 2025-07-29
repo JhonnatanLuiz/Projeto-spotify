@@ -36,9 +36,66 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Instâncias e Estado ---
     const auth = new SpotifyAuth();
     const spotifyAPI = new SpotifyAPI(auth);
+    let player;
+    let deviceId;
     let currentPlaylist = [];
     let currentTrackIndex = 0;
     let isDemoMode = localStorage.getItem('demo_mode') === 'true'; // Estado do modo demo
+
+    // --- Spotify Web Playback SDK ---
+    window.onSpotifyWebPlaybackSDKReady = () => {
+        if (auth.isAuthenticated()) {
+            const token = auth.getAccessToken();
+            player = new Spotify.Player({
+                name: 'Spotify Clone Player',
+                getOAuthToken: cb => { cb(token); }
+            });
+
+            // Error handling
+            player.addListener('initialization_error', ({ message }) => { console.error(message); });
+            player.addListener('authentication_error', ({ message }) => { console.error(message); });
+            player.addListener('account_error', ({ message }) => { console.error(message); });
+            player.addListener('playback_error', ({ message }) => { console.error(message); });
+
+            // Playback status updates
+            player.addListener('player_state_changed', state => {
+                if (!state) {
+                    return;
+                }
+
+                let {
+                    current_track,
+                    next_tracks: [next_track]
+                } = state.track_window;
+
+                console.log('Currently Playing', current_track);
+                console.log('Playing Next', next_track);
+
+                currentTrackImage.src = current_track.album.images[0].url;
+                currentTrackName.textContent = current_track.name;
+                currentTrackArtist.textContent = current_track.artists.map(artist => artist.name).join(', ');
+
+                updateProgress(state.position, state.duration);
+                playPauseBtn.innerHTML = state.paused ? '<i class="fas fa-play"></i>' : '<i class="fas fa-pause"></i>';
+
+                audioPlayer.onended = () => {};
+            });
+
+            // Ready
+            player.addListener('ready', ({ device_id }) => {
+                console.log('Ready with Device ID', device_id);
+                deviceId = device_id;
+            });
+
+            // Not Ready
+            player.addListener('not_ready', ({ device_id }) => {
+                console.log('Device ID has gone offline', device_id);
+            });
+
+            // Connect to the player!
+            player.connect();
+        }
+    };
 
     // --- Lógica de Autenticação e UI ---
     function updateUIForAuthState() {
@@ -196,8 +253,12 @@ document.addEventListener('DOMContentLoaded', () => {
         cardCol.querySelector('.play-button-overlay').addEventListener('click', () => {
             const track = currentPlaylist.find(t => t.id == item.id);
             if (track) {
-                loadTrack(track);
-                playTrack();
+                if (isDemoMode) {
+                    loadTrack(track);
+                    audioPlayer.play();
+                } else {
+                    playTrack(track.uri);
+                }
             }
         });
         return cardCol;
@@ -214,16 +275,32 @@ document.addEventListener('DOMContentLoaded', () => {
         audioPlayer.onloadedmetadata = () => totalDurationElement.textContent = formatTime(audioPlayer.duration);
     }
 
-    function playTrack() { audioPlayer.play().catch(e => console.error("Erro ao tocar:", e)); }
-    function pauseTrack() { audioPlayer.pause(); }
-    function togglePlayPause() { if (audioPlayer.paused) playTrack(); else pauseTrack(); }
-    function nextTrack() { currentTrackIndex = (currentTrackIndex + 1) % currentPlaylist.length; loadTrack(currentPlaylist[currentTrackIndex]); playTrack(); }
-    function prevTrack() { currentTrackIndex = (currentTrackIndex - 1 + currentPlaylist.length) % currentPlaylist.length; loadTrack(currentPlaylist[currentTrackIndex]); playTrack(); }
-    function updateProgress() {
-        progressBar.style.width = `${(audioPlayer.currentTime / audioPlayer.duration) * 100}%`;
-        currentTimeElement.textContent = formatTime(audioPlayer.currentTime);
+    function playTrack(spotify_uri) {
+        if (!deviceId) {
+            console.error("Device ID not available");
+            return;
+        }
+        spotifyAPI.play(deviceId, spotify_uri);
     }
-    function setProgress(e) { audioPlayer.currentTime = (e.offsetX / this.clientWidth) * audioPlayer.duration; }
+    function pauseTrack() { player.pause(); }
+    function togglePlayPause() { player.togglePlay(); }
+    function nextTrack() { player.nextTrack(); }
+    function prevTrack() { player.previousTrack(); }
+    function updateProgress(position, duration) {
+        progressBar.style.width = `${(position / duration) * 100}%`;
+        currentTimeElement.textContent = formatTime(position / 1000);
+        totalDurationElement.textContent = formatTime(duration / 1000);
+    }
+    function setProgress(e) {
+        const width = this.clientWidth;
+        const clickX = e.offsetX;
+        player.getCurrentState().then(state => {
+            if (state) {
+                const duration = state.duration;
+                player.seek(Math.round(clickX / width * duration));
+            }
+        });
+    }
     function formatTime(s) { const m = Math.floor(s / 60); const sec = Math.floor(s % 60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; }
 
     // --- Funções de Modo Demo ---
@@ -298,10 +375,10 @@ document.addEventListener('DOMContentLoaded', () => {
         playPauseBtn.addEventListener('click', togglePlayPause);
         prevBtn.addEventListener('click', prevTrack);
         nextBtn.addEventListener('click', nextTrack);
-        audioPlayer.addEventListener('timeupdate', updateProgress);
-        audioPlayer.addEventListener('ended', nextTrack);
-        audioPlayer.addEventListener('play', () => playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>');
-        audioPlayer.addEventListener('pause', () => playPauseBtn.innerHTML = '<i class="fas fa-play"></i>');
+        // audioPlayer.addEventListener('timeupdate', updateProgress);
+        // audioPlayer.addEventListener('ended', nextTrack);
+        // audioPlayer.addEventListener('play', () => playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>');
+        // audioPlayer.addEventListener('pause', () => playPauseBtn.innerHTML = '<i class="fas fa-play"></i>');
         progressBarContainer.addEventListener('click', setProgress);
         
         console.log("--- Função init() concluída ---");

@@ -60,4 +60,13 @@ class SpotifyAPI {
     async getPlaylistTracks(playlistId, limit = 50) {
         return this.makeRequest(`/playlists/${playlistId}/tracks?limit=${limit}`);
     }
+
+    async play(deviceId, spotifyUri) {
+        const endpoint = `/me/player/play?device_id=${deviceId}`;
+        const options = {
+            method: 'PUT',
+            body: JSON.stringify({ uris: [spotifyUri] }),
+        };
+        return this.makeRequest(endpoint, options);
+    }
 }
