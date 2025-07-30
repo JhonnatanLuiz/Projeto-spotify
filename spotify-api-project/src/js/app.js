@@ -81,32 +81,221 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Carregamento de Dados ---
     async function loadRealData() {
-        showLoadingMessage('Carregando suas músicas do Spotify...');
+        showLoadingMessage('Carregando suas músicas recentes...');
         try {
-            const playlistsData = await spotifyAPI.getFeaturedPlaylists(1);
-            if (!playlistsData || playlistsData.playlists.items.length === 0) {
-                throw new Error("Nenhuma playlist em destaque encontrada.");
-            }
-            const playlist = playlistsData.playlists.items[0];
-            const tracksData = await spotifyAPI.getPlaylistTracks(playlist.id, 50);
-            const tracks = tracksData.items.filter(item => item.track && item.track.preview_url);
+            // Carrega recently played tracks
+            const recentlyPlayedData = await spotifyAPI.getRecentlyPlayed(20);
+            
+            if (recentlyPlayedData && recentlyPlayedData.items && recentlyPlayedData.items.length > 0) {
+                const tracks = recentlyPlayedData.items
+                    .filter(item => item.track && item.track.preview_url)
+                    .map(item => ({
+                        id: item.track.id,
+                        title: item.track.name,
+                        artist: item.track.artists.map(a => a.name).join(', '),
+                        albumArt: item.track.album.images[0]?.url,
+                        audioUrl: item.track.preview_url,
+                        playedAt: item.played_at
+                    }));
 
-            if (tracks.length > 0) {
-                currentPlaylist = tracks.map(item => ({
+                if (tracks.length > 0) {
+                    currentPlaylist = tracks;
+                    displayTracks('Músicas Tocadas Recentemente');
+                    loadTrack(currentPlaylist[0]);
+                    loadUserPlaylists(); // Carrega playlists na sidebar
+                    return;
+                }
+            }
+
+            // Fallback: se não há recently played, carrega top tracks
+            const topTracksData = await spotifyAPI.getTopTracks(20);
+            if (topTracksData && topTracksData.items && topTracksData.items.length > 0) {
+                const tracks = topTracksData.items
+                    .filter(track => track.preview_url)
+                    .map(track => ({
+                        id: track.id,
+                        title: track.name,
+                        artist: track.artists.map(a => a.name).join(', '),
+                        albumArt: track.album.images[0]?.url,
+                        audioUrl: track.preview_url
+                    }));
+
+                if (tracks.length > 0) {
+                    currentPlaylist = tracks;
+                    displayTracks('Suas Músicas Mais Tocadas');
+                    loadTrack(currentPlaylist[0]);
+                    loadUserPlaylists();
+                    return;
+                }
+            }
+
+            // Se nenhum dos acima funcionou, usa fallback
+            loadFallbackData("Nenhuma música com preview encontrada em seu histórico.");
+        } catch (error) {
+            console.error('Erro ao carregar dados reais:', error);
+            loadFallbackData('Não foi possível carregar os dados do Spotify.');
+        }
+    }
+
+    async function loadUserPlaylists() {
+        try {
+            const playlistsData = await spotifyAPI.getUserPlaylists(20);
+            const userPlaylistsContainer = document.getElementById('user-playlists');
+            
+            if (playlistsData && playlistsData.items) {
+                userPlaylistsContainer.innerHTML = '';
+                
+                playlistsData.items.forEach(playlist => {
+                    const playlistElement = document.createElement('div');
+                    playlistElement.className = 'playlist-item p-2 mb-1 rounded';
+                    playlistElement.style.cursor = 'pointer';
+                    playlistElement.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <img src="${playlist.images?.[0]?.url || 'https://placehold.co/40x40/1DB954/121212?text=P'}" 
+                                 alt="${playlist.name}" class="rounded me-2" style="width: 40px; height: 40px;">
+                            <div>
+                                <div class="text-white small fw-bold">${playlist.name}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">${playlist.tracks.total} músicas</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    playlistElement.addEventListener('click', () => loadPlaylistTracks(playlist));
+                    userPlaylistsContainer.appendChild(playlistElement);
+                });
+            }
+        } catch (error) {
+            console.error('Erro ao carregar playlists do usuário:', error);
+        }
+    }
+
+    async function loadPlaylistTracks(playlist) {
+        showLoadingMessage(`Carregando "${playlist.name}"...`);
+        
+        try {
+            const tracksData = await spotifyAPI.getPlaylistTracks(playlist.id, 50);
+            const tracks = tracksData.items
+                .filter(item => item.track && item.track.preview_url)
+                .map(item => ({
                     id: item.track.id,
                     title: item.track.name,
                     artist: item.track.artists.map(a => a.name).join(', '),
                     albumArt: item.track.album.images[0]?.url,
                     audioUrl: item.track.preview_url
                 }));
-                displayTracks();
+
+            if (tracks.length > 0) {
+                currentPlaylist = tracks;
+                displayTracks(playlist.name);
                 loadTrack(currentPlaylist[0]);
             } else {
-                loadFallbackData("Nenhuma música com preview encontrada.");
+                showErrorMessage(`Nenhuma música com preview encontrada na playlist "${playlist.name}".`);
             }
         } catch (error) {
-            console.error('Erro ao carregar dados reais:', error);
-            loadFallbackData('Não foi possível carregar os dados do Spotify.');
+            console.error('Erro ao carregar tracks da playlist:', error);
+            showErrorMessage(`Erro ao carregar a playlist "${playlist.name}".`);
+        }
+    }
+
+    async function loadTopArtists() {
+        showLoadingMessage('Carregando seus artistas favoritos...');
+        
+        try {
+            const topArtistsData = await spotifyAPI.getTopArtists(20);
+            
+            if (topArtistsData && topArtistsData.items && topArtistsData.items.length > 0) {
+                displayTopArtists(topArtistsData.items);
+            } else {
+                showErrorMessage('Nenhum artista favorito encontrado.');
+            }
+        } catch (error) {
+            console.error('Erro ao carregar top artists:', error);
+            if (error.message.includes('401') || error.message.includes('403')) {
+                showErrorMessage('Esta funcionalidade requer permissões especiais do Spotify.');
+            } else {
+                showErrorMessage('Erro ao carregar seus artistas favoritos.');
+            }
+        }
+    }
+
+    function displayTopArtists(artists) {
+        mainContentArea.innerHTML = '';
+        
+        const container = document.createElement('div');
+        container.innerHTML = `
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <h2 class="text-white">Seus Artistas Favoritos</h2>
+                </div>
+            </div>
+            <div class="row" id="artists-container"></div>
+        `;
+        
+        const artistsContainer = container.querySelector('#artists-container');
+        
+        artists.forEach(artist => {
+            const artistCard = createArtistCard(artist);
+            artistsContainer.appendChild(artistCard);
+        });
+        
+        mainContentArea.appendChild(container);
+    }
+
+    function createArtistCard(artist) {
+        const cardCol = document.createElement('div');
+        cardCol.className = 'col-md-3 col-sm-4 col-6 mb-4';
+        
+        const artistImage = artist.images?.[0]?.url || 'https://placehold.co/300x300/1DB954/ffffff?text=Artist';
+        
+        cardCol.innerHTML = `
+            <div class="content-card text-decoration-none h-100">
+                <div style="position:relative;">
+                    <img src="${artistImage}" alt="${artist.name}" class="card-img-top rounded-circle" style="aspect-ratio: 1; object-fit: cover;">
+                    <button class="play-button-overlay" data-artist-id="${artist.id}"><i class="fas fa-play"></i></button>
+                </div>
+                <div class="card-body p-2 mt-2 text-center">
+                    <h5 class="card-title text-white">${artist.name}</h5>
+                    <p class="card-subtitle">${artist.followers?.total?.toLocaleString() || ''} seguidores</p>
+                    <p class="card-text small text-muted">${artist.genres?.slice(0, 2).join(', ') || ''}</p>
+                </div>
+            </div>
+        `;
+
+        // Event listener para tocar músicas do artista (busca)
+        cardCol.querySelector('.play-button-overlay').addEventListener('click', () => {
+            searchAndPlayArtist(artist.name);
+        });
+
+        return cardCol;
+    }
+
+    async function searchAndPlayArtist(artistName) {
+        try {
+            const searchResults = await spotifyAPI.searchTracks(`artist:${artistName}`, 10);
+            
+            if (searchResults && searchResults.tracks && searchResults.tracks.items.length > 0) {
+                const tracks = searchResults.tracks.items
+                    .filter(track => track.preview_url)
+                    .map(track => ({
+                        id: track.id,
+                        title: track.name,
+                        artist: track.artists.map(a => a.name).join(', '),
+                        albumArt: track.album.images[0]?.url,
+                        audioUrl: track.preview_url
+                    }));
+
+                if (tracks.length > 0) {
+                    currentPlaylist = tracks;
+                    displayTracks(`Músicas de ${artistName}`);
+                    loadTrack(currentPlaylist[0]);
+                    playTrack();
+                } else {
+                    alert(`Nenhuma música com preview encontrada para ${artistName}.`);
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao buscar músicas do artista:', error);
+            alert(`Erro ao carregar músicas de ${artistName}.`);
         }
     }
 
@@ -142,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioUrl: "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Kangaroo_MusiQue_-_The_Neverwritten_Role_Playing_Game.mp3" 
             }
         ];
-        displayTracks();
+        displayTracks('Músicas Demo');
         if (currentPlaylist.length > 0) loadTrack(currentPlaylist[0]);
     }
 
@@ -168,10 +357,23 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
     }
 
-    function displayTracks() {
+    function displayTracks(title = '') {
         const container = document.createElement('div');
         container.className = 'row';
-        currentPlaylist.forEach(item => container.appendChild(createContentCard(item)));
+        
+        // Adiciona título se fornecido
+        if (title) {
+            const titleElement = document.createElement('div');
+            titleElement.className = 'col-12 mb-4';
+            titleElement.innerHTML = `<h2 class="text-white">${title}</h2>`;
+            container.appendChild(titleElement);
+        }
+        
+        // Adiciona os cards das músicas em uma nova row
+        const tracksRow = document.createElement('div');
+        tracksRow.className = 'row';
+        currentPlaylist.forEach(item => tracksRow.appendChild(createContentCard(item)));
+        container.appendChild(tracksRow);
         
         // Limpa a área de conteúdo antes de adicionar os novos cards
         const alert = mainContentArea.querySelector('.alert');
@@ -505,8 +707,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('nav ul li a').forEach(link => link.classList.remove('active'));
                 // Adiciona classe active ao botão clicado
                 homeNavBtn.classList.add('active');
-                // Recarrega a tela inicial
-                updateUIForAuthState();
+                
+                // Se autenticado e não em modo demo, mostra top artists
+                if (auth.isAuthenticated() && !isDemoMode) {
+                    loadTopArtists();
+                } else {
+                    // Caso contrário, recarrega a tela inicial
+                    updateUIForAuthState();
+                }
             });
         }
 
