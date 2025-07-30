@@ -10,104 +10,75 @@ document.addEventListener('DOMContentLoaded', () => {
         return; // Interrompe a execução
     }
 
-    // --- Seletores ---
-    const mainContentArea = document.getElementById('main-content-area');
-    const loginBtn = document.getElementById('login-btn');
-    const userProfileContainer = document.getElementById('user-profile');
-    const userNameSpan = document.getElementById('user-name');
-    const userAvatar = document.querySelector('#user-profile img');
-    const logoutBtn = document.getElementById('logout-btn');
-    const demoModeBtn = document.getElementById('demo-mode-btn');
-    const realModeBtn = document.getElementById('real-mode-btn');
-    
-    // Player
-    const audioPlayer = document.getElementById('audio-player');
-    const playPauseBtn = document.getElementById('play-pause-btn');
-    const prevBtn = document.getElementById('prev-btn');
-    const nextBtn = document.getElementById('next-btn');
-    const progressBar = document.getElementById('progress-bar');
-    const progressBarContainer = document.getElementById('progress-bar-container');
-    const currentTimeElement = document.getElementById('current-time');
-    const totalDurationElement = document.getElementById('total-duration');
-    const currentTrackImage = document.getElementById('current-track-image');
-    const currentTrackName = document.getElementById('current-track-name');
-    const currentTrackArtist = document.getElementById('current-track-artist');
-
     // --- Instâncias e Estado ---
     const auth = new SpotifyAuth();
     const spotifyAPI = new SpotifyAPI(auth);
+    const player = Player(spotifyAPI);
+    const ui = UI;
     let currentPlaylist = [];
-    let currentTrackIndex = 0;
     let isDemoMode = localStorage.getItem('demo_mode') === 'true'; // Estado do modo demo
 
     // --- Lógica de Autenticação e UI ---
-    function updateUIForAuthState() {
-        if (auth.isAuthenticated()) {
-            loginBtn.style.display = 'none';
-            userProfileContainer.style.display = 'block';
-            loadUserProfile();
-            
-            // Controla a visibilidade dos botões de modo
-            if (isDemoMode) {
-                demoModeBtn.style.display = 'none';
-                realModeBtn.style.display = 'block';
-                loadFallbackData("Modo Demo Ativado - Usando dados fictícios");
-            } else {
-                demoModeBtn.style.display = 'block';
-                realModeBtn.style.display = 'none';
-                loadRealData();
-            }
-        } else {
-            loginBtn.style.display = 'block';
-            userProfileContainer.style.display = 'none';
-            demoModeBtn.style.display = 'none';
-            realModeBtn.style.display = 'none';
-            loadFallbackData();
-        }
+    function updateUI() {
+        ui.updateUIForAuthState(auth.isAuthenticated(), isDemoMode, loadUserProfile, loadFallbackData, loadRealData);
     }
 
     async function loadUserProfile() {
         const profile = await spotifyAPI.getUserProfile();
-        if (profile) {
-            userNameSpan.textContent = profile.display_name || 'Usuário';
-            const avatar = profile.images?.[0]?.url;
-            if (avatar) userAvatar.src = avatar;
-        }
+        ui.updateUserProfile(profile);
+        loadUserPlaylists();
     }
 
     // --- Carregamento de Dados ---
     async function loadRealData() {
-        showLoadingMessage('Carregando suas músicas do Spotify...');
+        ui.showLoadingMessage('Carregando suas músicas recentes do Spotify...');
         try {
-            const playlistsData = await spotifyAPI.getFeaturedPlaylists(1);
-            if (!playlistsData || playlistsData.playlists.items.length === 0) {
-                throw new Error("Nenhuma playlist em destaque encontrada.");
-            }
-            const playlist = playlistsData.playlists.items[0];
-            const tracksData = await spotifyAPI.getPlaylistTracks(playlist.id, 50);
-            const tracks = tracksData.items.filter(item => item.track && item.track.preview_url);
-
-            if (tracks.length > 0) {
-                currentPlaylist = tracks.map(item => ({
+            const recentlyPlayedData = await spotifyAPI.getRecentlyPlayed();
+            if (recentlyPlayedData && recentlyPlayedData.items.length > 0) {
+                const tracks = recentlyPlayedData.items.map(item => ({
                     id: item.track.id,
                     title: item.track.name,
                     artist: item.track.artists.map(a => a.name).join(', '),
                     albumArt: item.track.album.images[0]?.url,
+                    uri: item.track.uri,
                     audioUrl: item.track.preview_url
                 }));
-                displayTracks();
-                loadTrack(currentPlaylist[0]);
+                currentPlaylist = tracks;
+                ui.displayTracks(currentPlaylist, isDemoMode, player.playTrack);
             } else {
-                loadFallbackData("Nenhuma música com preview encontrada.");
+                // If no recent tracks, load top artists
+                loadTopArtists();
             }
         } catch (error) {
-            console.error('Erro ao carregar dados reais:', error);
-            loadFallbackData('Não foi possível carregar os dados do Spotify.');
+            console.error('Erro ao carregar músicas recentes:', error);
+            loadTopArtists(); // Fallback to top artists
+        }
+    }
+
+    async function loadTopArtists() {
+        ui.showLoadingMessage('Carregando seus artistas favoritos do Spotify...');
+        try {
+            const topArtistsData = await spotifyAPI.getTopArtists();
+            if (topArtistsData && topArtistsData.items.length > 0) {
+                const artists = topArtistsData.items.map(artist => ({
+                    id: artist.id,
+                    title: artist.name,
+                    artist: 'Artista',
+                    albumArt: artist.images[0]?.url,
+                    uri: artist.uri
+                }));
+                ui.displayTracks(artists, isDemoMode, player.playTrack);
+            } else {
+                throw new Error("Nenhum artista encontrado.");
+            }
+        } catch (error) {
+            console.error('Erro ao carregar artistas:', error);
+            loadFallbackData('Não foi possível carregar seus artistas favoritos.');
         }
     }
 
     function loadFallbackData(message = "Usando dados de exemplo.") {
-        showErrorMessage(message);
+        ui.showErrorMessage(message);
         currentPlaylist = [
             { 
                 id: 1, 
@@ -138,126 +109,92 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioUrl: "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Kangaroo_MusiQue_-_The_Neverwritten_Role_Playing_Game.mp3" 
             }
         ];
-        displayTracks();
-        if (currentPlaylist.length > 0) loadTrack(currentPlaylist[0]);
+        ui.displayTracks(currentPlaylist, isDemoMode, player.playTrack);
+        if (currentPlaylist.length > 0) player.loadTrack(currentPlaylist[0]);
     }
 
-    // --- Renderização ---
-    function showLoadingMessage(message) {
-        mainContentArea.innerHTML = `
-            <div class="d-flex justify-content-center align-items-center h-100">
-                <div class="spinner-border text-success" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="text-white ms-3">${message}</p>
-            </div>
-        `;
-    }
-
-    function showErrorMessage(message) {
-        // Mostra a mensagem de acordo com o contexto
-        let alertClass = 'alert-warning';
-        let icon = 'fas fa-exclamation-triangle';
-        
-        if (message.includes("Modo Demo")) {
-            alertClass = 'alert-info';
-            icon = 'fas fa-code';
-        }
-        
-        mainContentArea.innerHTML = `
-            <div class="alert ${alertClass} d-flex align-items-center">
-                <i class="${icon} me-2"></i>
-                <span>${message}</span>
-            </div>`;
-    }
-
-    function displayTracks() {
-        const container = document.createElement('div');
-        container.className = 'row';
-        currentPlaylist.forEach(item => container.appendChild(createContentCard(item)));
-        
-        // Limpa a área de conteúdo antes de adicionar os novos cards
-        const alert = mainContentArea.querySelector('.alert');
-        if (alert) {
-            mainContentArea.appendChild(container);
-        } else {
-            mainContentArea.innerHTML = '';
-            mainContentArea.appendChild(container);
+    async function loadUserPlaylists() {
+        const playlistsData = await spotifyAPI.getUserPlaylists();
+        if (playlistsData && playlistsData.items) {
+            const userPlaylists = document.getElementById('user-playlists');
+            userPlaylists.innerHTML = '';
+            playlistsData.items.forEach(playlist => {
+                const playlistElement = document.createElement('a');
+                playlistElement.href = '#';
+                playlistElement.className = 'list-group-item list-group-item-action bg-transparent border-0 text-white';
+                playlistElement.textContent = playlist.name;
+                playlistElement.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    ui.showLoadingMessage(`Carregando a playlist "${playlist.name}"...`);
+                    const tracksData = await spotifyAPI.getPlaylistTracks(playlist.id);
+                    const tracks = tracksData.items.filter(item => item.track && (item.track.preview_url || item.track.uri));
+                    if (tracks.length > 0) {
+                        currentPlaylist = tracks.map(item => ({
+                            id: item.track.id,
+                            title: item.track.name,
+                            artist: item.track.artists.map(a => a.name).join(', '),
+                            albumArt: item.track.album.images[0]?.url,
+                            uri: item.track.uri,
+                            audioUrl: item.track.preview_url
+                        }));
+                        ui.displayTracks(currentPlaylist, isDemoMode, player.playTrack);
+                        if (!isDemoMode && currentPlaylist.length > 0) {
+                            player.playTrack(currentPlaylist[0]);
+                        }
+                    } else {
+                        ui.showErrorMessage(`A playlist "${playlist.name}" não contém músicas com preview.`);
+                    }
+                });
+                userPlaylists.appendChild(playlistElement);
+            });
         }
     }
 
-    function createContentCard(item) {
-        const cardCol = document.createElement('div');
-        cardCol.className = 'col-md-3 col-sm-4 col-6 mb-4';
-        cardCol.innerHTML = `
-            <div class="content-card text-decoration-none h-100">
-                <div style="position:relative;">
-                    <img src="${item.albumArt || 'https://placehold.co/300x300/1DB954/121212?text=Musica'}" alt="Capa de ${item.title}" class="card-img-top">
-                    <button class="play-button-overlay" data-track-id="${item.id}"><i class="fas fa-play"></i></button>
-                </div>
-                <div class="card-body p-2 mt-2">
-                    <h5 class="card-title text-white">${item.title}</h5>
-                    <p class="card-subtitle">${item.artist}</p>
-                </div>
-            </div>`;
-        cardCol.querySelector('.play-button-overlay').addEventListener('click', () => {
-            const track = currentPlaylist.find(t => t.id == item.id);
-            if (track) {
-                loadTrack(track);
-                playTrack();
+    // --- Search ---
+    async function handleSearch() {
+        const query = document.getElementById('search-input').value;
+        if (query) {
+            ui.showLoadingMessage(`Buscando por "${query}"...`);
+            try {
+                const results = await spotifyAPI.search(query);
+                displaySearchResults(results);
+            } catch (error) {
+                console.error('Erro ao buscar:', error);
+                ui.showErrorMessage('Não foi possível realizar a busca.');
             }
-        });
-        return cardCol;
+        }
     }
 
-    // --- Funções do Player ---
-    function loadTrack(track) {
-        if (!track) return;
-        currentTrackImage.src = track.albumArt || 'https://via.placeholder.com/56';
-        currentTrackName.textContent = track.title;
-        currentTrackArtist.textContent = track.artist;
-        currentTrackIndex = currentPlaylist.findIndex(t => t.id === track.id);
-        audioPlayer.src = track.audioUrl;
-        audioPlayer.onloadedmetadata = () => totalDurationElement.textContent = formatTime(audioPlayer.duration);
+    function displaySearchResults(results) {
+        if (results.tracks.items.length > 0) {
+            const tracks = results.tracks.items.map(item => ({
+                id: item.id,
+                title: item.name,
+                artist: item.artists.map(a => a.name).join(', '),
+                albumArt: item.album.images[0]?.url,
+                uri: item.uri,
+                audioUrl: item.preview_url
+            }));
+            currentPlaylist = tracks;
+            ui.displayTracks(currentPlaylist, isDemoMode, player.playTrack);
+        } else {
+            ui.showErrorMessage('Nenhum resultado encontrado.');
+        }
     }
-
-    function playTrack() { audioPlayer.play().catch(e => console.error("Erro ao tocar:", e)); }
-    function pauseTrack() { audioPlayer.pause(); }
-    function togglePlayPause() { if (audioPlayer.paused) playTrack(); else pauseTrack(); }
-    function nextTrack() { currentTrackIndex = (currentTrackIndex + 1) % currentPlaylist.length; loadTrack(currentPlaylist[currentTrackIndex]); playTrack(); }
-    function prevTrack() { currentTrackIndex = (currentTrackIndex - 1 + currentPlaylist.length) % currentPlaylist.length; loadTrack(currentPlaylist[currentTrackIndex]); playTrack(); }
-    function updateProgress() {
-        progressBar.style.width = `${(audioPlayer.currentTime / audioPlayer.duration) * 100}%`;
-        currentTimeElement.textContent = formatTime(audioPlayer.currentTime);
-    }
-    function setProgress(e) { audioPlayer.currentTime = (e.offsetX / this.clientWidth) * audioPlayer.duration; }
-    function formatTime(s) { const m = Math.floor(s / 60); const sec = Math.floor(s % 60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; }
 
     // --- Funções de Modo Demo ---
     function activateDemoMode() {
         console.log("Ativando modo demo...");
         isDemoMode = true;
         localStorage.setItem('demo_mode', 'true');
-        
-        // Atualiza os botões
-        demoModeBtn.style.display = 'none';
-        realModeBtn.style.display = 'block';
-        
-        // Carrega dados fictícios
-        loadFallbackData("Modo Demo Ativado - Usando dados fictícios");
+        updateUI();
     }
 
     function activateRealMode() {
         console.log("Ativando modo real...");
         isDemoMode = false;
         localStorage.setItem('demo_mode', 'false');
-        
-        // Atualiza os botões
-        demoModeBtn.style.display = 'block';
-        realModeBtn.style.display = 'none';
-        
-        // Carrega dados reais do Spotify
-        loadRealData();
+        updateUI();
     }
 
     // --- Inicialização ---
@@ -270,8 +207,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         console.log("Atualizando a UI para o estado de autenticação...");
-        updateUIForAuthState();
+        updateUI();
 
+        player.init(auth);
+
+        const loginBtn = document.getElementById('login-btn');
         if (loginBtn) {
             console.log("Botão de login encontrado. Adicionando ouvinte de clique.");
             loginBtn.addEventListener('click', () => {
@@ -283,11 +223,22 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("ERRO CRÍTICO: Botão de login com id 'login-btn' NÃO FOI ENCONTRADO no DOM.");
         }
 
+        const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => auth.logout());
         }
 
+        document.getElementById('home-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (auth.isAuthenticated() && !isDemoMode) {
+                loadRealData();
+            } else {
+                loadFallbackData();
+            }
+        });
+
         // Event listeners para alternar entre modo demo e real
+        const demoModeBtn = document.getElementById('demo-mode-btn');
         if (demoModeBtn) {
             demoModeBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -295,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        const realModeBtn = document.getElementById('real-mode-btn');
         if (realModeBtn) {
             realModeBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -302,18 +254,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        playPauseBtn.addEventListener('click', togglePlayPause);
-        prevBtn.addEventListener('click', prevTrack);
-        nextBtn.addEventListener('click', nextTrack);
-        audioPlayer.addEventListener('timeupdate', updateProgress);
-        audioPlayer.addEventListener('ended', nextTrack);
-        audioPlayer.addEventListener('play', () => playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>');
-        audioPlayer.addEventListener('pause', () => playPauseBtn.innerHTML = '<i class="fas fa-play"></i>');
-        progressBarContainer.addEventListener('click', setProgress);
+        document.getElementById('search-button').addEventListener('click', handleSearch);
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSearch();
+            }
+        });
         
         console.log("--- Função init() concluída ---");
     }
 
     init();
 });
-
