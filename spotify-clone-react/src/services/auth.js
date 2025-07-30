@@ -25,11 +25,7 @@ class SpotifyAuth {
     }
 
     login() {
-        console.log("--- SpotifyAuth.login() CHAMADO ---");
-        const authUrl = this.getAuthUrl();
-        console.log("URL de Autorização:", authUrl);
-        console.log("Redirecionando para autorização do Spotify...");
-        window.location.href = authUrl;
+        window.location.href = 'http://localhost:3001/login';
     }
 
     handleCallback() {

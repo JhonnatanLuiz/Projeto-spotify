@@ -17,32 +17,14 @@ class SpotifyAPI {
             return null;
         }
 
-        const url = `${this.baseUrl}${endpoint}`;
+        const url = `http://localhost:3001/api${endpoint}`;
         const headers = {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
             ...options.headers
         };
 
         try {
             const response = await fetch(url, { ...options, headers });
-
-            if (response.status === 401) {
-                console.error('Token de acesso expirado ou inválido.');
-                this.auth.logout();
-                throw new Error('Token expirado. Faça login novamente.');
-            }
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Erro na API do Spotify:', errorData);
-                throw new Error(`Erro na API: ${response.status} - ${errorData.error.message}`);
-            }
-
-            if (response.status === 204) {
-                return {};
-            }
-
             return await response.json();
         } catch (error) {
             console.error(`Erro na requisição para ${endpoint}:`, error);
