@@ -60,6 +60,4 @@ class SpotifyAPI {
     async getPlaylistTracks(playlistId, limit = 50) {
         return this.makeRequest(`/playlists/${playlistId}/tracks?limit=${limit}`);
     }
-
-    }
 }
