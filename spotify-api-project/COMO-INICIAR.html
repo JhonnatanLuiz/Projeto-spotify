@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Como Iniciar o Spotify Clone</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #121212;
+            color: white;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .step {
+            background: #1e1e1e;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #1db954;
+        }
+        code {
+            background: #2a2a2a;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+        }
+        .command {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: 'Consolas', monospace;
+            overflow-x: auto;
+        }
+        .success {
+            color: #1db954;
+            font-weight: bold;
+        }
+        .error {
+            color: #e22134;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ffa500;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Como Iniciar o Spotify Clone</h1>
+        
+        <div class="step">
+            <h2>📁 Passo 1: Abrir Terminal</h2>
+            <p>Abra o <strong>PowerShell</strong> ou <strong>Prompt de Comando</strong> como administrador</p>
+        </div>
+
+        <div class="step">
+            <h2>📂 Passo 2: Navegar para a Pasta</h2>
+            <p>Cole e execute este comando:</p>
+            <div class="command">cd "c:\Users\Johnnie Desktop\OneDrive\Documents\GitHub\Outros-projetos\Projeto-spotify\spotify-api-project"</div>
+        </div>
+
+        <div class="step">
+            <h2>🚀 Passo 3: Iniciar o Servidor</h2>
+            <p>Execute um destes comandos:</p>
+            <div class="command">python -m http.server 3000</div>
+            <p><strong>OU se python não funcionar:</strong></p>
+            <div class="command">python3 -m http.server 3000</div>
+        </div>
+
+        <div class="step">
+            <h2>🌐 Passo 4: Acessar a Aplicação</h2>
+            <p>Quando aparecer <span class="success">"Serving HTTP on :: port 3000"</span>, acesse:</p>
+            <div class="command">
+                <a href="http://127.0.0.1:3000/src/index.html" target="_blank" style="color: #1db954;">
+                    http://127.0.0.1:3000/src/index.html
+                </a>
+            </div>
+        </div>
+
+        <div class="step">
+            <h2>⚡ Atalho Rápido</h2>
+            <p>Você também pode executar diretamente o arquivo:</p>
+            <ul>
+                <li><code>start-server.bat</code> (duplo clique)</li>
+                <li><code>start-server.ps1</code> (PowerShell)</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h2>🔧 Possíveis Problemas</h2>
+            <h3 class="error">Erro: "python não é reconhecido"</h3>
+            <p>Solução: Instale o Python em <a href="https://python.org" target="_blank">python.org</a></p>
+            
+            <h3 class="error">Erro: "Porta 3000 já em uso"</h3>
+            <p>Solução: Use outra porta:</p>
+            <div class="command">python -m http.server 8000</div>
+            <p>E acesse: <code>http://127.0.0.1:8000/src/index.html</code></p>
+            
+            <h3 class="warning">Firewall/Antivirus</h3>
+            <p>Se o Windows perguntar, permita o acesso do Python através do firewall.</p>
+        </div>
+
+        <div class="step">
+            <h2>✅ Funcionalidades Disponíveis</h2>
+            <ul>
+                <li><strong>🔐 Login:</strong> Conecte sua conta Spotify real</li>
+                <li><strong>🎵 Recently Played:</strong> Suas músicas tocadas recentemente</li>
+                <li><strong>📁 Playlists:</strong> Suas playlists na sidebar (clicáveis)</li>
+                <li><strong>⭐ Top Artists:</strong> Clique em "Início" para ver seus artistas favoritos</li>
+                <li><strong>🔍 Busca:</strong> Procure músicas, artistas e álbuns</li>
+                <li><strong>🎮 Demo Mode:</strong> Alterne entre dados reais e fictícios</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
