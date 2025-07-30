@@ -20,10 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const demoModeBtn = document.getElementById('demo-mode-btn');
     const realModeBtn = document.getElementById('real-mode-btn');
     
-    // Navegação
-    const searchNavBtn = document.querySelector('nav ul li:nth-child(2) a'); // Botão "Buscar"
-    const homeNavBtn = document.querySelector('nav ul li:nth-child(1) a'); // Botão "Início"
-    
     // Player
     const audioPlayer = document.getElementById('audio-player');
     const playPauseBtn = document.getElementById('play-pause-btn');
@@ -40,66 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Instâncias e Estado ---
     const auth = new SpotifyAuth();
     const spotifyAPI = new SpotifyAPI(auth);
-    let player;
-    let deviceId;
     let currentPlaylist = [];
     let currentTrackIndex = 0;
     let isDemoMode = localStorage.getItem('demo_mode') === 'true'; // Estado do modo demo
-
-    // --- Spotify Web Playback SDK ---
-    window.onSpotifyWebPlaybackSDKReady = () => {
-        if (auth.isAuthenticated()) {
-            const token = auth.getAccessToken();
-            player = new Spotify.Player({
-                name: 'Spotify Clone Player',
-                getOAuthToken: cb => { cb(token); }
-            });
-
-            // Error handling
-            player.addListener('initialization_error', ({ message }) => { console.error(message); });
-            player.addListener('authentication_error', ({ message }) => { console.error(message); });
-            player.addListener('account_error', ({ message }) => { console.error(message); });
-            player.addListener('playback_error', ({ message }) => { console.error(message); });
-
-            // Playback status updates
-            player.addListener('player_state_changed', state => {
-                if (!state) {
-                    return;
-                }
-
-                let {
-                    current_track,
-                    next_tracks: [next_track]
-                } = state.track_window;
-
-                console.log('Currently Playing', current_track);
-                console.log('Playing Next', next_track);
-
-                currentTrackImage.src = current_track.album.images[0].url;
-                currentTrackName.textContent = current_track.name;
-                currentTrackArtist.textContent = current_track.artists.map(artist => artist.name).join(', ');
-
-                updateProgress(state.position, state.duration);
-                playPauseBtn.innerHTML = state.paused ? '<i class="fas fa-play"></i>' : '<i class="fas fa-pause"></i>';
-
-                audioPlayer.onended = () => {};
-            });
-
-            // Ready
-            player.addListener('ready', ({ device_id }) => {
-                console.log('Ready with Device ID', device_id);
-                deviceId = device_id;
-            });
-
-            // Not Ready
-            player.addListener('not_ready', ({ device_id }) => {
-                console.log('Device ID has gone offline', device_id);
-            });
-
-            // Connect to the player!
-            player.connect();
-        }
-    };
 
     // --- Lógica de Autenticação e UI ---
     function updateUIForAuthState() {
@@ -134,58 +73,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const avatar = profile.images?.[0]?.url;
             if (avatar) userAvatar.src = avatar;
         }
-        loadUserPlaylists();
     }
 
     // --- Carregamento de Dados ---
     async function loadRealData() {
-        showLoadingMessage('Carregando suas músicas recentes do Spotify...');
+        showLoadingMessage('Carregando suas músicas do Spotify...');
         try {
-            const recentlyPlayedData = await spotifyAPI.getRecentlyPlayed();
-            if (recentlyPlayedData && recentlyPlayedData.items.length > 0) {
-                const tracks = recentlyPlayedData.items.map(item => ({
+            const playlistsData = await spotifyAPI.getFeaturedPlaylists(1);
+            if (!playlistsData || playlistsData.playlists.items.length === 0) {
+                throw new Error("Nenhuma playlist em destaque encontrada.");
+            }
+            const playlist = playlistsData.playlists.items[0];
+            const tracksData = await spotifyAPI.getPlaylistTracks(playlist.id, 50);
+            const tracks = tracksData.items.filter(item => item.track && item.track.preview_url);
+
+            if (tracks.length > 0) {
+                currentPlaylist = tracks.map(item => ({
                     id: item.track.id,
                     title: item.track.name,
                     artist: item.track.artists.map(a => a.name).join(', '),
                     albumArt: item.track.album.images[0]?.url,
-                    uri: item.track.uri,
                     audioUrl: item.track.preview_url
                 }));
-                currentPlaylist = tracks;
                 displayTracks();
+                loadTrack(currentPlaylist[0]);
             } else {
-                // If no recent tracks, load top artists
-                loadTopArtists();
+                loadFallbackData("Nenhuma música com preview encontrada.");
             }
         } catch (error) {
-            console.error('Erro ao carregar músicas recentes:', error);
-            loadTopArtists(); // Fallback to top artists
-        }
-    }
-
-    async function loadTopArtists() {
-        showLoadingMessage('Carregando seus artistas favoritos do Spotify...');
-        try {
-            const topArtistsData = await spotifyAPI.getTopArtists();
-            if (topArtistsData && topArtistsData.items.length > 0) {
-                const artists = topArtistsData.items.map(artist => ({
-                    id: artist.id,
-                    title: artist.name,
-                    artist: 'Artista',
-                    albumArt: artist.images[0]?.url,
-                    uri: artist.uri
-                }));
-                const container = document.createElement('div');
-                container.className = 'row';
-                artists.forEach(item => container.appendChild(createContentCard(item)));
-                mainContentArea.innerHTML = '';
-                mainContentArea.appendChild(container);
-            } else {
-                throw new Error("Nenhum artista encontrado.");
-            }
-        } catch (error) {
-            console.error('Erro ao carregar artistas:', error);
-            loadFallbackData('Não foi possível carregar seus artistas favoritos.');
+            console.error('Erro ao carregar dados reais:', error);
+            loadFallbackData('Não foi possível carregar os dados do Spotify.');
         }
     }
 
@@ -227,7 +144,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Renderização ---
     function showLoadingMessage(message) {
-        mainContentArea.innerHTML = `<div class="text-center text-white p-5"><div class="spinner-border text-success"></div><p class="mt-3">${message}</p></div>`;
+        mainContentArea.innerHTML = `
+            <div class="d-flex justify-content-center align-items-center h-100">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-white ms-3">${message}</p>
+            </div>
+        `;
     }
 
     function showErrorMessage(message) {
@@ -279,12 +203,8 @@ document.addEventListener('DOMContentLoaded', () => {
         cardCol.querySelector('.play-button-overlay').addEventListener('click', () => {
             const track = currentPlaylist.find(t => t.id == item.id);
             if (track) {
-                if (isDemoMode) {
-                    loadTrack(track);
-                    audioPlayer.play();
-                } else {
-                    playTrack(track.uri);
-                }
+                loadTrack(track);
+                playTrack();
             }
         });
         return cardCol;
@@ -301,106 +221,17 @@ document.addEventListener('DOMContentLoaded', () => {
         audioPlayer.onloadedmetadata = () => totalDurationElement.textContent = formatTime(audioPlayer.duration);
     }
 
-    function playTrack(spotify_uri) {
-        if (!deviceId) {
-            console.error("Device ID not available");
-            return;
-        }
-        spotifyAPI.play(deviceId, spotify_uri);
+    function playTrack() { audioPlayer.play().catch(e => console.error("Erro ao tocar:", e)); }
+    function pauseTrack() { audioPlayer.pause(); }
+    function togglePlayPause() { if (audioPlayer.paused) playTrack(); else pauseTrack(); }
+    function nextTrack() { currentTrackIndex = (currentTrackIndex + 1) % currentPlaylist.length; loadTrack(currentPlaylist[currentTrackIndex]); playTrack(); }
+    function prevTrack() { currentTrackIndex = (currentTrackIndex - 1 + currentPlaylist.length) % currentPlaylist.length; loadTrack(currentPlaylist[currentTrackIndex]); playTrack(); }
+    function updateProgress() {
+        progressBar.style.width = `${(audioPlayer.currentTime / audioPlayer.duration) * 100}%`;
+        currentTimeElement.textContent = formatTime(audioPlayer.currentTime);
     }
-    function pauseTrack() { player.pause(); }
-    function togglePlayPause() { player.togglePlay(); }
-    function nextTrack() { player.nextTrack(); }
-    function prevTrack() { player.previousTrack(); }
-    function updateProgress(position, duration) {
-        progressBar.style.width = `${(position / duration) * 100}%`;
-        currentTimeElement.textContent = formatTime(position / 1000);
-        totalDurationElement.textContent = formatTime(duration / 1000);
-    }
-    function setProgress(e) {
-        const width = this.clientWidth;
-        const clickX = e.offsetX;
-        player.getCurrentState().then(state => {
-            if (state) {
-                const duration = state.duration;
-                player.seek(Math.round(clickX / width * duration));
-            }
-        });
-    }
+    function setProgress(e) { audioPlayer.currentTime = (e.offsetX / this.clientWidth) * audioPlayer.duration; }
     function formatTime(s) { const m = Math.floor(s / 60); const sec = Math.floor(s % 60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; }
-
-    // --- Search ---
-    async function handleSearch() {
-        const query = document.getElementById('search-input').value;
-        if (query) {
-            showLoadingMessage(`Buscando por "${query}"...`);
-            try {
-                const results = await spotifyAPI.search(query);
-                displaySearchResults(results);
-            } catch (error) {
-                console.error('Erro ao buscar:', error);
-                showErrorMessage('Não foi possível realizar a busca.');
-            }
-        }
-    }
-
-    function displaySearchResults(results) {
-        mainContentArea.innerHTML = '';
-        if (results.tracks.items.length > 0) {
-            const tracks = results.tracks.items.map(item => ({
-                id: item.id,
-                title: item.name,
-                artist: item.artists.map(a => a.name).join(', '),
-                albumArt: item.album.images[0]?.url,
-                uri: item.uri,
-                audioUrl: item.preview_url
-            }));
-            currentPlaylist = tracks;
-            const container = document.createElement('div');
-            container.className = 'row';
-            tracks.forEach(item => container.appendChild(createContentCard(item)));
-            mainContentArea.appendChild(container);
-        } else {
-            showErrorMessage('Nenhum resultado encontrado.');
-        }
-    }
-
-    async function loadUserPlaylists() {
-        const playlistsData = await spotifyAPI.getUserPlaylists();
-        if (playlistsData && playlistsData.items) {
-            const userPlaylists = document.getElementById('user-playlists');
-            userPlaylists.innerHTML = '';
-            playlistsData.items.forEach(playlist => {
-                const playlistElement = document.createElement('a');
-                playlistElement.href = '#';
-                playlistElement.className = 'list-group-item list-group-item-action bg-transparent border-0 text-white';
-                playlistElement.textContent = playlist.name;
-                playlistElement.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    showLoadingMessage(`Carregando a playlist "${playlist.name}"...`);
-                    const tracksData = await spotifyAPI.getPlaylistTracks(playlist.id);
-                    const tracks = tracksData.items.filter(item => item.track && (item.track.preview_url || item.track.uri));
-                    if (tracks.length > 0) {
-                        currentPlaylist = tracks.map(item => ({
-                            id: item.track.id,
-                            title: item.track.name,
-                            artist: item.track.artists.map(a => a.name).join(', '),
-                            albumArt: item.track.album.images[0]?.url,
-                            uri: item.track.uri,
-                            audioUrl: item.track.preview_url
-                        }));
-                        displayTracks();
-                        if (!isDemoMode && currentPlaylist.length > 0) {
-                            playTrack(currentPlaylist[0].uri);
-                        }
-                    } else {
-                        showErrorMessage(`A playlist "${playlist.name}" não contém músicas com preview.`);
-                    }
-                });
-                userPlaylists.appendChild(playlistElement);
-            });
-        }
-    }
 
     // --- Funções de Modo Demo ---
     function activateDemoMode() {
@@ -427,193 +258,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Carrega dados reais do Spotify
         loadRealData();
-    }
-
-    // --- Funções de Busca ---
-    function showSearchInterface() {
-        mainContentArea.innerHTML = `
-            <div class="search-container">
-                <h2 class="text-white mb-4">Buscar Música</h2>
-                <div class="row mb-4">
-                    <div class="col-md-8">
-                        <div class="input-group">
-                            <input type="text" id="search-input" class="form-control form-control-lg" 
-                                   placeholder="Digite o nome da música, artista ou álbum..." 
-                                   style="background-color: #242424; border-color: #404040; color: white;">
-                            <button id="search-btn" class="btn btn-success btn-lg" type="button">
-                                <i class="fas fa-search"></i> Buscar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div id="search-results" class="row"></div>
-            </div>
-        `;
-
-        // Event listeners para busca
-        const searchInput = document.getElementById('search-input');
-        const searchBtn = document.getElementById('search-btn');
-
-        searchBtn.addEventListener('click', performSearch);
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                performSearch();
-            }
-        });
-
-        // Foco no campo de busca
-        searchInput.focus();
-    }
-
-    async function performSearch() {
-        const searchInput = document.getElementById('search-input');
-        const searchResults = document.getElementById('search-results');
-        const query = searchInput.value.trim();
-
-        if (!query) {
-            alert('Digite alguma coisa para buscar!');
-            return;
-        }
-
-        // Loading
-        searchResults.innerHTML = `
-            <div class="col-12 text-center text-white p-5">
-                <div class="spinner-border text-success"></div>
-                <p class="mt-3">Buscando "${query}"...</p>
-            </div>
-        `;
-
-        try {
-            if (!auth.isAuthenticated() || isDemoMode) {
-                // Busca demo/fictícia
-                performDemoSearch(query);
-                return;
-            }
-
-            // Busca real no Spotify
-            const results = await spotifyAPI.searchTracks(query, 20);
-            
-            if (results && results.tracks && results.tracks.items.length > 0) {
-                displaySearchResults(results.tracks.items);
-            } else {
-                searchResults.innerHTML = `
-                    <div class="col-12 text-center text-white p-5">
-                        <i class="fas fa-search fa-3x mb-3" style="color: #404040;"></i>
-                        <h4>Nenhum resultado encontrado</h4>
-                        <p>Tente buscar com outros termos.</p>
-                    </div>
-                `;
-            }
-        } catch (error) {
-            console.error('Erro na busca:', error);
-            searchResults.innerHTML = `
-                <div class="col-12">
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Erro ao buscar: ${error.message}
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    function performDemoSearch(query) {
-        const searchResults = document.getElementById('search-results');
-        
-        // Simulação de busca em dados demo
-        const demoResults = [
-            { 
-                id: 'demo_1', 
-                name: "Bohemian Rhapsody", 
-                artists: [{ name: "Queen" }],
-                album: { 
-                    images: [{ url: "https://placehold.co/300x300/1db954/ffffff?text=Queen" }],
-                    name: "A Night at the Opera"
-                },
-                preview_url: "https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3"
-            },
-            { 
-                id: 'demo_2', 
-                name: "Imagine", 
-                artists: [{ name: "John Lennon" }],
-                album: { 
-                    images: [{ url: "https://placehold.co/300x300/ff6b6b/ffffff?text=Lennon" }],
-                    name: "Imagine"
-                },
-                preview_url: "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Kangaroo_MusiQue_-_The_Neverwritten_Role_Playing_Game.mp3"
-            }
-        ].filter(track => 
-            track.name.toLowerCase().includes(query.toLowerCase()) ||
-            track.artists[0].name.toLowerCase().includes(query.toLowerCase())
-        );
-
-        if (demoResults.length > 0) {
-            displaySearchResults(demoResults);
-        } else {
-            searchResults.innerHTML = `
-                <div class="col-12 text-center text-white p-5">
-                    <i class="fas fa-search fa-3x mb-3" style="color: #404040;"></i>
-                    <h4>Nenhum resultado encontrado</h4>
-                    <p>Tente buscar por "Queen", "Bohemian", "John Lennon" ou "Imagine".</p>
-                </div>
-            `;
-        }
-    }
-
-    function displaySearchResults(tracks) {
-        const searchResults = document.getElementById('search-results');
-        searchResults.innerHTML = '';
-
-        tracks.forEach(track => {
-            const trackCard = createSearchResultCard(track);
-            searchResults.appendChild(trackCard);
-        });
-    }
-
-    function createSearchResultCard(track) {
-        const cardCol = document.createElement('div');
-        cardCol.className = 'col-md-3 col-sm-4 col-6 mb-4';
-        
-        const albumArt = track.album?.images?.[0]?.url || 'https://placehold.co/300x300/1DB954/121212?text=Musica';
-        const artistNames = track.artists?.map(artist => artist.name).join(', ') || 'Artista Desconhecido';
-        
-        cardCol.innerHTML = `
-            <div class="content-card text-decoration-none h-100">
-                <div style="position:relative;">
-                    <img src="${albumArt}" alt="Capa de ${track.name}" class="card-img-top">
-                    <button class="play-button-overlay" data-track-search='${JSON.stringify(track)}'><i class="fas fa-play"></i></button>
-                </div>
-                <div class="card-body p-2 mt-2">
-                    <h5 class="card-title text-white">${track.name}</h5>
-                    <p class="card-subtitle">${artistNames}</p>
-                    <p class="card-text small text-muted">${track.album?.name || ''}</p>
-                </div>
-            </div>
-        `;
-
-        cardCol.querySelector('.play-button-overlay').addEventListener('click', () => {
-            const trackData = JSON.parse(cardCol.querySelector('.play-button-overlay').dataset.trackSearch);
-            playSearchedTrack(trackData);
-        });
-
-        return cardCol;
-    }
-
-    function playSearchedTrack(track) {
-        const trackToPlay = {
-            id: track.id,
-            title: track.name,
-            artist: track.artists?.map(a => a.name).join(', ') || 'Artista Desconhecido',
-            albumArt: track.album?.images?.[0]?.url,
-            audioUrl: track.preview_url
-        };
-
-        if (trackToPlay.audioUrl) {
-            loadTrack(trackToPlay);
-            playTrack();
-        } else {
-            alert('Preview não disponível para esta música.');
-        }
     }
 
     // --- Inicialização ---
@@ -658,53 +302,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Event listeners para navegação
-        if (searchNavBtn) {
-            searchNavBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                // Remove classe active de todos os links
-                document.querySelectorAll('nav ul li a').forEach(link => link.classList.remove('active'));
-                // Adiciona classe active ao botão clicado
-                searchNavBtn.classList.add('active');
-                showSearchInterface();
-            });
-        }
-
-        if (homeNavBtn) {
-            homeNavBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                // Remove classe active de todos os links
-                document.querySelectorAll('nav ul li a').forEach(link => link.classList.remove('active'));
-                // Adiciona classe active ao botão clicado
-                homeNavBtn.classList.add('active');
-                // Recarrega a tela inicial
-                updateUIForAuthState();
-            });
-        }
-
         playPauseBtn.addEventListener('click', togglePlayPause);
         prevBtn.addEventListener('click', prevTrack);
         nextBtn.addEventListener('click', nextTrack);
-        // audioPlayer.addEventListener('timeupdate', updateProgress);
-        // audioPlayer.addEventListener('ended', nextTrack);
-        // audioPlayer.addEventListener('play', () => playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>');
-        // audioPlayer.addEventListener('pause', () => playPauseBtn.innerHTML = '<i class="fas fa-play"></i>');
+        audioPlayer.addEventListener('timeupdate', updateProgress);
+        audioPlayer.addEventListener('ended', nextTrack);
+        audioPlayer.addEventListener('play', () => playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>');
+        audioPlayer.addEventListener('pause', () => playPauseBtn.innerHTML = '<i class="fas fa-play"></i>');
         progressBarContainer.addEventListener('click', setProgress);
-
-        document.getElementById('search-button').addEventListener('click', handleSearch);
-        document.getElementById('search-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleSearch();
-            }
-        });
-        document.getElementById('home-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            if (auth.isAuthenticated() && !isDemoMode) {
-                loadRealData();
-            } else {
-                loadFallbackData();
-            }
-        });
         
         console.log("--- Função init() concluída ---");
     }
