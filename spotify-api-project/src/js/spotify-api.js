@@ -65,20 +65,4 @@ class SpotifyAPI {
         const encodedQuery = encodeURIComponent(query);
         return this.makeRequest(`/search?q=${encodedQuery}&type=track&limit=${limit}`);
     }
-
-    async getRecentlyPlayed(limit = 20) {
-        return this.makeRequest(`/me/player/recently-played?limit=${limit}`);
-    }
-
-    async getUserPlaylists(limit = 20) {
-        return this.makeRequest(`/me/playlists?limit=${limit}`);
-    }
-
-    async getTopArtists(limit = 20, timeRange = 'medium_term') {
-        return this.makeRequest(`/me/top/artists?limit=${limit}&time_range=${timeRange}`);
-    }
-
-    async getTopTracks(limit = 20, timeRange = 'medium_term') {
-        return this.makeRequest(`/me/top/tracks?limit=${limit}&time_range=${timeRange}`);
-    }
 }

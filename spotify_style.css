@@ -39,7 +39,7 @@
             align-items: center;
             font-weight: bold;
             border-radius: 4px;
-            transition: color 0.2s ease;
+            transition: color 0.2s ease, background-color 0.2s ease;
         }
         .sidebar nav ul li a:hover,
         .sidebar nav ul li a.active {
@@ -134,12 +134,19 @@
             background-color: #181818; /* Cor de card do Spotify */
             padding: 16px;
             border-radius: 8px;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, transform 0.3s ease;
             text-decoration: none;
             color: #fff;
             height: 100%; /* Para preencher a altura da coluna */
             display: flex;
             flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .content-card:hover {
+            transform: translateY(-5px);
+            background-color: #282828;
         }
         .content-card:hover {
             background-color: #282828;
